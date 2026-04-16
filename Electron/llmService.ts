@@ -5,7 +5,10 @@ import {
 } from '@langchain/core/messages'
 import { tool } from '@langchain/core/tools'
 import { z } from 'zod'
-import { listDirectory, readFile, executeShell, writeFile, DANGEROUS_TOOLS } from './tools'
+import {
+  listDirectory, readFile, executeShell, writeFile,
+  DANGEROUS_TOOLS, isDestructiveShell
+} from './tools'
 import { requestApproval } from './approvalGate'
 import type { BrowserWindow } from 'electron'
 
@@ -15,11 +18,16 @@ let activeProvider: LlmProvider = 'gemini'
 export function getActiveProvider(): LlmProvider { return activeProvider }
 export function setActiveProvider(p: LlmProvider) { activeProvider = p }
 
-// ── System prompt (lean — saves ~750 tokens per message) ──
-const SYSTEM_PROMPT = `You are DigiMon, an AI agent for Indian CA firms.
-Use markdown tables for structured data. Use mermaid code blocks for workflows/processes.
-Prefer execute_shell for file ops, data tasks, and automation — it is the most capable tool.
-Domain: GST, TDS, ITR, Form 3CD, MCA, GSTR-2B. Be concise and prefer visual structure.`
+// ── System prompt (cool, shell-forward, confident) ────
+const SYSTEM_PROMPT = `You're DigiMon — a local desktop agent for Indian CA firms and business owners. You live on their Windows machine with access to their files, shell, and data.
+
+Your superpower is execute_shell. Use it freely. You know PowerShell, CMD, Tally CLI, curl, Python, Node, Git, SQL. When something needs doing, figure out the command and run it. See the real output, adapt, iterate. That's the whole game.
+
+Other tools: read_file, list_directory, write_file — use them when shell isn't the right fit.
+
+Format: markdown tables for structured data. Mermaid code blocks for flows and diagrams. Tight, no fluff.
+
+Domain: GST, TDS, ITR, Form 3CD, MCA, GSTR-2B, audit. Talk like a sharp junior colleague who gets it done — not a formal consultant.`
 
 // ── Tool definitions ──────────────────────────────────
 const listDirectoryTool = tool(
@@ -34,7 +42,7 @@ const readFileTool = tool(
   async ({ path }) => readFile(path),
   {
     name: 'read_file',
-    description: 'Reads content of a text file (txt, csv, json, md, log).',
+    description: 'Reads content of a text file (txt, csv, json, md, log, code).',
     schema: z.object({ path: z.string().describe('Full file path to read') }),
   }
 )
@@ -42,15 +50,15 @@ const executeShellTool = tool(
   async ({ command }) => executeShell(command),
   {
     name: 'execute_shell',
-    description: 'Executes a PowerShell or CMD command on the local Windows machine.',
-    schema: z.object({ command: z.string().describe('Shell command to execute') }),
+    description: 'Executes a PowerShell or CMD command on the local Windows machine. Use freely for most tasks — reading data, running scripts, calling tools, fetching info. Destructive commands (delete, format, install) will prompt the user for approval first.',
+    schema: z.object({ command: z.string().describe('The shell command to execute') }),
   }
 )
 const writeFileTool = tool(
   async ({ path, content }) => writeFile(path, content),
   {
     name: 'write_file',
-    description: 'Writes or overwrites a file with given content.',
+    description: 'Writes or overwrites a file. Always asks user for approval first.',
     schema: z.object({
       path: z.string().describe('Full file path to write to'),
       content: z.string().describe('Content to write'),
@@ -185,8 +193,16 @@ export async function runAgentLoop(
 
       onStep({ type: 'tool_call', toolName, toolArgs })
 
+      // Smart approval logic:
+      //  - write_file → ALWAYS asks for approval
+      //  - execute_shell → only asks if the command is destructive (del, rm, format, installers, etc.)
+      //  - read-only shell (dir, ls, cat, git status, curl GET, python --version) → runs immediately
+      const needsApproval =
+        DANGEROUS_TOOLS.has(toolName) ||
+        (toolName === 'execute_shell' && isDestructiveShell(toolArgs.command))
+
       let toolResult: string
-      if (DANGEROUS_TOOLS.has(toolName)) {
+      if (needsApproval) {
         const approved = await requestApproval(win, toolName, toolArgs)
         toolResult = approved
           ? (await dynamicToolMap[toolName]?.(toolArgs)) ?? 'Tool not found'
