@@ -6,6 +6,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   storeGet: (key: string) => ipcRenderer.invoke('store:get', key),
   storeDelete: (key: string) => ipcRenderer.invoke('store:delete', key),
 
+  // ── App ──────────────────────────────────────────────
+  needsSetup: () => ipcRenderer.invoke('app:needsSetup'),
+
   // ── Chats ─────────────────────────────────────────────
   createChat: (title: string) => ipcRenderer.invoke('db:createChat', title),
   getChats: () => ipcRenderer.invoke('db:getChats'),
@@ -51,9 +54,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ── LLM Provider ──────────────────────────────────────
   setProvider: (provider: string) => ipcRenderer.invoke('llm:setProvider', provider),
   getProvider: () => ipcRenderer.invoke('llm:getProvider'),
+  testApiKey: (provider: string, apiKey: string) =>
+    ipcRenderer.invoke('llm:testKey', provider, apiKey),
   onProviderChange: (cb: (p: string) => void) =>
     ipcRenderer.on('llm:provider', (_e, p) => cb(p)),
-  onQuotaHit: (cb: (data: { from: string; hasGrok: boolean; hasGemini: boolean }) => void) =>
+  onQuotaHit: (cb: (data: { from: string; hasGrok: boolean; hasGemini: boolean; message?: string }) => void) =>
     ipcRenderer.on('llm:quota-hit', (_e, data) => cb(data)),
 
   // ── MCP Hub ───────────────────────────────────────────

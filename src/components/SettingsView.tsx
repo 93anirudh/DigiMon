@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react'
 import { McpMarketplace } from './McpMarketplace'
 
-// ── Reusable key input ────────────────────────────────
 function ApiKeyInput({
-  label, hint, storeKey, placeholder
+  label, hint, storeKey, placeholder, provider
 }: {
   label: string; hint: string; storeKey: string; placeholder: string
+  provider: 'gemini' | 'grok'
 }) {
   const [val, setVal] = useState('')
   const [saved, setSaved] = useState(false)
   const [visible, setVisible] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState<{ ok: boolean; error?: string } | null>(null)
 
   useEffect(() => {
     window.electronAPI.storeGet(storeKey).then(k => { if (k) setVal(k) })
@@ -17,9 +19,14 @@ function ApiKeyInput({
 
   const save = async () => {
     if (!val.trim()) return
-    await window.electronAPI.storeSet(storeKey, val.trim())
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    setTesting(true); setTestResult(null)
+    const test = await window.electronAPI.testApiKey(provider, val.trim())
+    setTesting(false)
+    setTestResult(test)
+    if (test.ok) {
+      await window.electronAPI.storeSet(storeKey, val.trim())
+      setSaved(true); setTimeout(() => setSaved(false), 2000)
+    }
   }
 
   return (
@@ -32,7 +39,7 @@ function ApiKeyInput({
             className="text-input"
             type={visible ? 'text' : 'password'}
             value={val}
-            onChange={e => setVal(e.target.value)}
+            onChange={e => { setVal(e.target.value); setTestResult(null) }}
             placeholder={placeholder}
             onKeyDown={e => e.key === 'Enter' && save()}
             style={{ width: '100%', paddingRight: 36 }}
@@ -45,83 +52,57 @@ function ApiKeyInput({
               background: 'none', border: 'none',
               color: 'var(--text3)', cursor: 'pointer', fontSize: 12,
             }}
-          >
-            {visible ? '◻' : '◼'}
-          </button>
+          >{visible ? '◻' : '◼'}</button>
         </div>
-        <button className={`btn-save ${saved ? 'saved' : ''}`} onClick={save}>
-          {saved ? '✓ Saved' : 'Save'}
+        <button
+          className={`btn-save ${saved ? 'saved' : ''}`}
+          onClick={save}
+          disabled={testing}
+        >
+          {testing ? 'Testing…' : saved ? '✓ Saved' : 'Verify & Save'}
         </button>
       </div>
+      {testResult && !testResult.ok && (
+        <div className="setup-result err" style={{ marginTop: 8 }}>✗ {testResult.error}</div>
+      )}
     </div>
   )
 }
 
-// ── Main component ────────────────────────────────────
-type Tab = 'ai' | 'integrations'
+type Tab = 'general' | 'integrations'
 
 export function SettingsView() {
-  const [tab, setTab] = useState<Tab>('ai')
+  const [tab, setTab] = useState<Tab>('general')
 
   return (
     <div className="settings-shell">
       <div className="settings-header">
         <div className="settings-title">Settings</div>
-        <div className="settings-sub">Configure your AI engine and connected tools</div>
+        <div className="settings-sub">Configure integrations and advanced options</div>
       </div>
 
       <div className="settings-tabs">
-        <button
-          className={`settings-tab ${tab === 'ai' ? 'active' : ''}`}
-          onClick={() => setTab('ai')}
-        >
-          AI Model
+        <button className={`settings-tab ${tab === 'general' ? 'active' : ''}`} onClick={() => setTab('general')}>
+          General
         </button>
-        <button
-          className={`settings-tab ${tab === 'integrations' ? 'active' : ''}`}
-          onClick={() => setTab('integrations')}
-        >
+        <button className={`settings-tab ${tab === 'integrations' ? 'active' : ''}`} onClick={() => setTab('integrations')}>
           Integrations
         </button>
       </div>
 
       <div className="settings-body">
-        {tab === 'ai' && <AiTab />}
+        {tab === 'general' && <GeneralTab />}
         {tab === 'integrations' && <IntegrationsTab />}
       </div>
     </div>
   )
 }
 
-function AiTab() {
+function GeneralTab() {
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+
   return (
     <>
-      <div className="settings-section">
-        <div className="settings-section-title">API Keys</div>
-        <div className="settings-card">
-          <div className="settings-card-body">
-            <ApiKeyInput
-              label="Gemini API Key (Primary)"
-              hint="Get your free key at aistudio.google.com/apikey · This is the primary model"
-              storeKey="gemini_api_key"
-              placeholder="AIza…"
-            />
-            <hr className="settings-divider" />
-            <ApiKeyInput
-              label="Grok API Key (Fallback)"
-              hint="Get your key at console.x.ai · Used automatically when Gemini hits its quota limit"
-              storeKey="grok_api_key"
-              placeholder="xai-…"
-            />
-          </div>
-        </div>
-        <p style={{ fontSize: 11.5, color: 'var(--text3)', marginTop: 10, lineHeight: 1.6 }}>
-          All API keys are stored locally on your machine inside your AppData folder.
-          They are never transmitted to any external service except the AI providers directly.
-          When Gemini hits its quota, Practice OS will ask before switching to Grok.
-        </p>
-      </div>
-
       <div className="settings-section">
         <div className="settings-section-title">Keyboard Shortcuts</div>
         <div className="settings-card">
@@ -148,6 +129,57 @@ function AiTab() {
           </div>
         </div>
       </div>
+
+      <div className="settings-section">
+        <button
+          onClick={() => setAdvancedOpen(v => !v)}
+          style={{
+            width: '100%', textAlign: 'left',
+            background: 'transparent', border: '1px solid var(--border-md)',
+            borderRadius: 'var(--r-sm)', padding: '10px 14px',
+            color: 'var(--text)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            fontFamily: 'var(--font)', fontSize: 13, fontWeight: 500,
+          }}
+        >
+          <span>
+            <span style={{ color: 'var(--accent)', marginRight: 6 }}>⚙</span>
+            Advanced — API Keys
+          </span>
+          <span style={{ color: 'var(--text3)' }}>{advancedOpen ? '▲' : '▼'}</span>
+        </button>
+
+        {advancedOpen && (
+          <div style={{ marginTop: 12 }}>
+            <div className="settings-card">
+              <div className="settings-card-body">
+                <p style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 16, lineHeight: 1.6 }}>
+                  DigiMon uses Gemini by default and falls back to Grok automatically when the free tier runs out.
+                  Most users never need to touch these.
+                </p>
+                <ApiKeyInput
+                  label="Gemini API Key"
+                  hint="Primary AI. Get free at aistudio.google.com/apikey"
+                  storeKey="gemini_api_key"
+                  placeholder="AIza…"
+                  provider="gemini"
+                />
+                <hr className="settings-divider" />
+                <ApiKeyInput
+                  label="Grok API Key (optional fallback)"
+                  hint="Used automatically if Gemini hits its rate limit. Get at console.x.ai"
+                  storeKey="grok_api_key"
+                  placeholder="xai-…"
+                  provider="grok"
+                />
+              </div>
+            </div>
+            <p style={{ fontSize: 11.5, color: 'var(--text3)', marginTop: 10, lineHeight: 1.6 }}>
+              Keys are stored locally in your AppData folder, never transmitted anywhere except the AI providers themselves.
+            </p>
+          </div>
+        )}
+      </div>
     </>
   )
 }
@@ -155,11 +187,10 @@ function AiTab() {
 function IntegrationsTab() {
   return (
     <div className="settings-section">
-      <div className="settings-section-title">MCP Tool Integrations</div>
+      <div className="settings-section-title">MCP Integrations</div>
       <p style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 14, lineHeight: 1.6 }}>
-        Connect external tools to extend the AI's capabilities.
-        API keys for each tool are stored locally and never shared.
-        Toggling a server automatically reconnects all active integrations.
+        Extend what DigiMon can do. Click <strong>Enable</strong> to install and test-connect;
+        the integration activates automatically when you ask for something that needs it.
       </p>
       <div style={{ height: 520 }}>
         <McpMarketplace />

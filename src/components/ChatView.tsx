@@ -11,20 +11,13 @@ function initMermaid(dark: boolean) {
   if (mermaidTheme === theme) return
   mermaidTheme = theme
   mermaid.initialize({
-    startOnLoad: false,
-    theme,
-    securityLevel: 'loose',
-    fontFamily: 'Inter, system-ui, sans-serif',
-    fontSize: 13,
+    startOnLoad: false, theme, securityLevel: 'loose',
+    fontFamily: 'Inter, system-ui, sans-serif', fontSize: 13,
     themeVariables: dark ? {
-      primaryColor: '#F16A50',
-      primaryTextColor: '#EDEDEF',
-      primaryBorderColor: '#3A3A4A',
-      lineColor: '#5C5C6E',
-      sectionBkgColor: '#18181F',
-      altSectionBkgColor: '#111116',
-      gridColor: '#3A3A4A',
-      background: '#111116',
+      primaryColor: '#F16A50', primaryTextColor: '#EDEDEF',
+      primaryBorderColor: '#3A3A4A', lineColor: '#5C5C6E',
+      sectionBkgColor: '#18181F', altSectionBkgColor: '#111116',
+      gridColor: '#3A3A4A', background: '#111116',
     } : undefined,
   })
 }
@@ -35,10 +28,8 @@ function MermaidDiagram({ code, dark }: { code: string; dark: boolean }) {
   const id = useRef(`mm${Math.random().toString(36).slice(2, 9)}`)
 
   useEffect(() => {
-    initMermaid(dark)
-    setErr(false)
-    const clean = code.trim()
-    mermaid.render(id.current, clean)
+    initMermaid(dark); setErr(false)
+    mermaid.render(id.current, code.trim())
       .then(({ svg }) => { if (ref.current) ref.current.innerHTML = svg })
       .catch(() => setErr(true))
   }, [code, dark])
@@ -52,7 +43,6 @@ function MermaidDiagram({ code, dark }: { code: string; dark: boolean }) {
   return <div className="mermaid-wrap" ref={ref} />
 }
 
-// ── Bare mermaid fixer ────────────────────────────────
 function fixMermaid(content: string): string {
   return content.replace(
     /(?:^|\n)(mermaid\n(?:graph|flowchart|sequenceDiagram|pie|gantt|erDiagram|classDiagram|stateDiagram)[^\n]*(?:\n(?!```).*)*)/gm,
@@ -60,10 +50,8 @@ function fixMermaid(content: string): string {
   )
 }
 
-// ── Time display ──────────────────────────────────────
 function timeAgo(dateStr: string): string {
-  const d = new Date(dateStr)
-  const now = new Date()
+  const d = new Date(dateStr), now = new Date()
   const diff = Math.floor((now.getTime() - d.getTime()) / 1000)
   if (diff < 60) return 'just now'
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
@@ -71,20 +59,26 @@ function timeAgo(dateStr: string): string {
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
 }
 
-// ── Steps ─────────────────────────────────────────────
 interface Step {
-  type: string
-  toolName?: string
-  toolArgs?: any
-  result?: string
-  iteration?: number
+  type: string; toolName?: string; toolArgs?: any
+  result?: string; iteration?: number
+  from?: string; to?: string
 }
 
 function StepRow({ step }: { step: Step }) {
+  if (step.type === 'provider_switched') return (
+    <div className="step-row">
+      <span className="step-icon" style={{ color: 'var(--accent)' }}>⇄</span>
+      <span className="step-text">
+        Switched to <strong>{step.to === 'gemini' ? 'Gemini' : 'Grok'}</strong>
+        <span style={{ color: 'var(--text3)' }}> · {step.from} hit rate limit</span>
+      </span>
+    </div>
+  )
   if (step.type === 'thinking') return (
     <div className="step-row">
       <span className="step-icon" style={{ animation: 'breathe 1.5s ease infinite' }}>◌</span>
-      <span className="step-text">Reasoning through the problem…</span>
+      <span className="step-text">Thinking…</span>
     </div>
   )
   if (step.type === 'tool_call') return (
@@ -111,14 +105,9 @@ function StepRow({ step }: { step: Step }) {
   return null
 }
 
-// ── Copy button ───────────────────────────────────────
 function CopyBtn({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
-  const copy = () => {
-    navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
+  const copy = () => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000) }
   return (
     <button className={`action-btn ${copied ? 'copied' : ''}`} onClick={copy}>
       {copied ? '✓ Copied' : '⎘ Copy'}
@@ -126,7 +115,6 @@ function CopyBtn({ text }: { text: string }) {
   )
 }
 
-// ── Types ─────────────────────────────────────────────
 interface Message { id: number; role: string; content: string; created_at?: string }
 
 interface Props {
@@ -134,11 +122,10 @@ interface Props {
   chatTitle: string
   activeProvider: string
   dark: boolean
-  onSendSuggestion?: (text: string) => void
+  onSwitchProvider: (to: string) => void
 }
 
-// ── Component ─────────────────────────────────────────
-export function ChatView({ chatId, chatTitle, activeProvider, dark }: Props) {
+export function ChatView({ chatId, chatTitle, activeProvider, dark, onSwitchProvider }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
@@ -160,24 +147,21 @@ export function ChatView({ chatId, chatTitle, activeProvider, dark }: Props) {
     window.electronAPI.onChunk(chunk => setStreamBuffer(p => p + chunk))
 
     window.electronAPI.onStep(step => {
-      if (step.type !== 'done') setSteps(p => [...p, step])
+      // 'done' is handled via onDone. Everything else (incl. provider_switched) shows inline.
+      if (step.type === 'done') return
+      setSteps(p => [...p, step])
     })
 
     window.electronAPI.onDone(() => {
-      setStreaming(false)
-      setSteps([])
-      setLastError(null)
+      setStreaming(false); setSteps([]); setLastError(null)
       reloadMessages().then(() => setStreamBuffer(''))
     })
 
     window.electronAPI.onError(msg => {
-      setStreaming(false)
-      setSteps([])
-      setStreamBuffer('')
+      setStreaming(false); setSteps([]); setStreamBuffer('')
       setLastError(msg)
     })
 
-    // Check for pending suggestion from welcome screen
     if (window._pendingSuggestion) {
       const text = window._pendingSuggestion
       delete window._pendingSuggestion
@@ -197,10 +181,7 @@ export function ChatView({ chatId, chatTitle, activeProvider, dark }: Props) {
 
   const sendText = async (text: string) => {
     if (!text.trim() || streaming) return
-    setStreaming(true)
-    setStreamBuffer('')
-    setSteps([])
-    setLastError(null)
+    setStreaming(true); setStreamBuffer(''); setSteps([]); setLastError(null)
     setMessages(prev => [...prev, {
       id: Date.now(), role: 'user', content: text,
       created_at: new Date().toISOString()
@@ -209,18 +190,14 @@ export function ChatView({ chatId, chatTitle, activeProvider, dark }: Props) {
   }
 
   const sendMessage = async () => {
-    const text = input.trim()
-    if (!text) return
+    const text = input.trim(); if (!text) return
     setInput('')
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
     await sendText(text)
   }
 
   const handleRetry = async () => {
-    setStreaming(true)
-    setStreamBuffer('')
-    setSteps([])
-    setLastError(null)
+    setStreaming(true); setStreamBuffer(''); setSteps([]); setLastError(null)
     setMessages(prev => {
       const last = prev[prev.length - 1]
       return last?.role === 'assistant' ? prev.slice(0, -1) : prev
@@ -232,7 +209,11 @@ export function ChatView({ chatId, chatTitle, activeProvider, dark }: Props) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
   }
 
-  // Markdown renderer with Mermaid
+  const handleProviderClick = () => {
+    const next = activeProvider === 'gemini' ? 'grok' : 'gemini'
+    onSwitchProvider(next)
+  }
+
   const mdComponents: any = {
     code({ className, children }: any) {
       const lang = /language-(\w+)/.exec(className || '')?.[1]
@@ -252,20 +233,22 @@ export function ChatView({ chatId, chatTitle, activeProvider, dark }: Props) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Header */}
       <div className="chat-header">
         <span className="chat-header-title">{chatTitle === '…' ? 'New conversation' : chatTitle}</span>
-        <span className={`provider-pill ${activeProvider}`}>
+        <button
+          className={`provider-pill clickable ${activeProvider}`}
+          onClick={handleProviderClick}
+          title={`Click to switch to ${activeProvider === 'gemini' ? 'Grok' : 'Gemini'}`}
+        >
           {activeProvider === 'gemini' ? '✦ Gemini' : '⚡ Grok'}
-        </span>
+          <span className="provider-swap">⇄</span>
+        </button>
         {streaming && <span className="status-pill">Thinking…</span>}
       </div>
 
-      {/* Messages */}
       <div className="messages-area">
         {messages.map((msg, idx) => {
           const isLast = idx === messages.length - 1
-
           if (msg.role === 'user') return (
             <div key={msg.id} className="message-group">
               <div className="message-user">
@@ -273,20 +256,17 @@ export function ChatView({ chatId, chatTitle, activeProvider, dark }: Props) {
               </div>
             </div>
           )
-
           return (
             <div key={msg.id} className="message-group">
               <div className="message-assistant">
                 <div className="assistant-meta">
-                  <div className="assistant-avatar">P</div>
-                  <span className="assistant-name">Practice OS</span>
+                  <div className="assistant-avatar">D</div>
+                  <span className="assistant-name">DigiMon</span>
                   {msg.created_at && (
                     <span className="assistant-time">{timeAgo(msg.created_at)}</span>
                   )}
                 </div>
-                <div className="assistant-body">
-                  {renderMd(msg.content)}
-                </div>
+                <div className="assistant-body">{renderMd(msg.content)}</div>
                 <div className="message-actions">
                   <CopyBtn text={msg.content} />
                   {isLast && (
@@ -300,24 +280,31 @@ export function ChatView({ chatId, chatTitle, activeProvider, dark }: Props) {
           )
         })}
 
-        {/* Error */}
         {lastError && !streaming && (
           <div className="error-block">
             <span className="error-icon">⚠</span>
             <div className="error-content">
               <div className="error-message">{lastError}</div>
-              <button className="error-retry" onClick={handleRetry}>↺ Retry</button>
+              <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                <button className="error-retry" onClick={handleRetry}>↺ Retry</button>
+                <button
+                  className="error-retry"
+                  onClick={() => onSwitchProvider(activeProvider === 'gemini' ? 'grok' : 'gemini')}
+                  style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
+                >
+                  Switch to {activeProvider === 'gemini' ? 'Grok' : 'Gemini'}
+                </button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Streaming */}
         {streaming && (
           <div className="message-group">
             <div className="message-assistant">
               <div className="assistant-meta">
-                <div className="assistant-avatar">P</div>
-                <span className="assistant-name">Practice OS</span>
+                <div className="assistant-avatar">D</div>
+                <span className="assistant-name">DigiMon</span>
               </div>
               <div className="assistant-body">
                 {steps.length > 0 && (
@@ -343,7 +330,6 @@ export function ChatView({ chatId, chatTitle, activeProvider, dark }: Props) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
       <div className="input-area">
         <div className="input-container">
           <textarea
@@ -354,7 +340,7 @@ export function ChatView({ chatId, chatTitle, activeProvider, dark }: Props) {
             onKeyDown={handleKeyDown}
             disabled={streaming}
             rows={1}
-            placeholder="Ask anything about GST, TDS, audit, or compliance…"
+            placeholder="Ask anything, or tell me to run something on your machine…"
           />
           <button className="send-btn" onClick={sendMessage} disabled={streaming || !input.trim()}>
             ↑
@@ -363,9 +349,9 @@ export function ChatView({ chatId, chatTitle, activeProvider, dark }: Props) {
         <div className="input-footer">
           <kbd>Enter</kbd> to send
           <span style={{ margin: '0 6px', opacity: 0.5 }}>·</span>
-          <kbd>Shift+Enter</kbd> for new line
+          <kbd>Shift+Enter</kbd> for newline
           <span style={{ margin: '0 6px', opacity: 0.5 }}>·</span>
-          Responses include tables and diagrams
+          Destructive commands always ask before running
         </div>
       </div>
     </div>

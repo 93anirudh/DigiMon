@@ -3,14 +3,15 @@ import path from 'path'
 import { getDb } from './database'
 import { storeGet, storeSet, storeDelete } from './store'
 import {
-  runAgentLoop, formatHistory, isQuotaError,
+  runAgentLoopWithFallback, formatHistory,
   getActiveProvider, setActiveProvider, generateChatTitle,
+  humanizeError, isQuotaError,
   type LlmProvider
 } from './llmService'
 import { resolveApproval } from './approvalGate'
 import {
   readMcpConfig, writeMcpConfig, getMcpStatus,
-  loadMcpServer, disconnectAll
+  loadMcpServer, disconnectAll, testMcpServer
 } from './mcpManager'
 
 const MCP_CONFIG_PATH = app.isPackaged
@@ -18,30 +19,61 @@ const MCP_CONFIG_PATH = app.isPackaged
   : path.join(app.getAppPath(), 'mcp_config.json')
 
 // ── Keyword → MCP server ID map for lazy-loading ──────
-// Add entries here as MCPs are debugged and confirmed working
+// When a user's message contains any of these keywords AND the MCP is enabled
+// in settings, that MCP is spun up for this one message. Add more keywords as
+// you discover patterns users actually type.
 const MCP_TRIGGER_MAP: Record<string, string> = {
-  // 'drive':      'google-workspace',
-  // 'gdrive':     'google-workspace',
-  // 'google doc': 'google-workspace',
-  // 'filesystem': 'filesystem',
-  // 'browse':     'puppeteer',
-  // 'screenshot': 'puppeteer',
+  // filesystem MCP
+  'file': 'filesystem',
+  'folder': 'filesystem',
+  'directory': 'filesystem',
+  // google workspace
+  'gmail': 'google-workspace',
+  'google drive': 'google-workspace',
+  'gdrive': 'google-workspace',
+  'google doc': 'google-workspace',
+  'google sheet': 'google-workspace',
+  // browser automation
+  'browser': 'puppeteer',
+  'screenshot': 'puppeteer',
+  'navigate to': 'puppeteer',
+  'website': 'puppeteer',
+  // notion
+  'notion': 'notion',
+  // airtable
+  'airtable': 'airtable',
+  // whatsapp
+  'whatsapp': 'whatsapp',
+  // pdf
+  'pdf': 'pdf-reader',
+  // excel
+  'excel': 'excel-csv',
+  'xlsx': 'excel-csv',
+  'spreadsheet': 'excel-csv',
+  // ocr
+  'ocr': 'ocr',
+  'scanned': 'ocr',
+  // github
+  'github': 'github',
+  // postgres
+  'postgresql': 'postgres',
+  'postgres': 'postgres',
 }
 
 function detectMcpServerId(userMessage: string): string | null {
   const lower = userMessage.toLowerCase()
+  const config = readMcpConfig(MCP_CONFIG_PATH)
+  const enabledIds = new Set(config.servers.filter(s => s.enabled).map(s => s.id))
+
   for (const [keyword, serverId] of Object.entries(MCP_TRIGGER_MAP)) {
-    if (lower.includes(keyword)) return serverId
+    if (lower.includes(keyword) && enabledIds.has(serverId)) return serverId
   }
   return null
 }
 
 function createWindow() {
   const win = new BrowserWindow({
-    width: 1300,
-    height: 840,
-    minWidth: 900,
-    minHeight: 600,
+    width: 1300, height: 840, minWidth: 900, minHeight: 600,
     title: 'DigiMon',
     backgroundColor: '#0A0A0D',
     webPreferences: {
@@ -74,16 +106,27 @@ function createWindow() {
   } else {
     win.loadFile(path.join(__dirname, '../dist/index.html'))
   }
+
+  // Catch uncaught Electron main process errors
+  win.webContents.on('render-process-gone', (_e, details) => {
+    console.error('[main] Render process crashed:', details)
+  })
 }
 
 app.whenReady().then(async () => {
-  const db = getDb()
-  console.log('✅ SQLite ready at:', app.getPath('userData'))
+  getDb()
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('  DigiMon starting up')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log(`[main] userData: ${app.getPath('userData')}`)
+  console.log(`[main] MCP auto-init: DISABLED (lazy-load mode)`)
 
-  // MCP disabled on startup — lazy-loaded per task via detectMcpServerId()
-  // To re-enable a server: uncomment its entry in MCP_TRIGGER_MAP above,
-  // verify it works with loadMcpServer(), then add it to the map.
-  console.log('ℹ️  MCP auto-init skipped — lazy-load mode active')
+  const hasGemini = !!storeGet('gemini_api_key')
+  const hasGrok   = !!storeGet('grok_api_key')
+  console.log(`[main] Keys on disk: gemini=${hasGemini} grok=${hasGrok}`)
+  if (!hasGemini && !hasGrok) {
+    console.log('[main] ⚠️  No API keys found — first-run setup will appear')
+  }
 
   // ── Secure Store ──────────────────────────────────────
   ipcMain.handle('store:set', (_e, key: string, value: string) => {
@@ -94,7 +137,13 @@ app.whenReady().then(async () => {
     storeDelete(key); return true
   })
 
+  // Check if first-run setup is needed
+  ipcMain.handle('app:needsSetup', () => {
+    return !storeGet('gemini_api_key') && !storeGet('grok_api_key')
+  })
+
   // ── Chats ─────────────────────────────────────────────
+  const db = getDb()
   ipcMain.handle('db:createChat', (_e, title: string) => {
     const result = db.prepare('INSERT INTO chats (title) VALUES (?)').run(title)
     return Number(result.lastInsertRowid)
@@ -103,12 +152,10 @@ app.whenReady().then(async () => {
     db.prepare('SELECT * FROM chats ORDER BY created_at DESC').all()
   )
   ipcMain.handle('db:deleteChat', (_e, chatId: number) => {
-    db.prepare('DELETE FROM chats WHERE id = ?').run(chatId)
-    return true
+    db.prepare('DELETE FROM chats WHERE id = ?').run(chatId); return true
   })
   ipcMain.handle('db:updateChatTitle', (_e, chatId: number, title: string) => {
-    db.prepare('UPDATE chats SET title = ? WHERE id = ?').run(title, chatId)
-    return true
+    db.prepare('UPDATE chats SET title = ? WHERE id = ?').run(title, chatId); return true
   })
 
   // ── Messages ──────────────────────────────────────────
@@ -122,44 +169,57 @@ app.whenReady().then(async () => {
     db.prepare('SELECT * FROM messages WHERE chat_id = ? ORDER BY created_at ASC').all(chatId)
   )
 
-  // ── LLM: Send ─────────────────────────────────────────
-  ipcMain.handle('chat:send', async (event, chatId: number, userMessage: string) => {
+  // ── Shared: send a message through the agent ──────────
+  async function runChat(
+    event: Electron.IpcMainInvokeEvent,
+    chatId: number,
+    userMessage: string,
+    history: { role: string; content: string }[],
+    saveUserMessage: boolean
+  ) {
     const geminiKey = storeGet('gemini_api_key')
     const grokKey   = storeGet('grok_api_key')
+
     if (!geminiKey && !grokKey) {
-      event.sender.send('chat:error', 'No API key found. Add one in Settings → AI Model Keys.')
+      event.sender.send('chat:error', 'No API key set. Open Settings and add one to begin.')
       return
     }
 
-    db.prepare('INSERT INTO messages (chat_id, role, content) VALUES (?, ?, ?)')
-      .run(chatId, 'user', userMessage)
+    if (saveUserMessage) {
+      db.prepare('INSERT INTO messages (chat_id, role, content) VALUES (?, ?, ?)')
+        .run(chatId, 'user', userMessage)
+    }
 
-    const history = db.prepare(
-      'SELECT role, content FROM messages WHERE chat_id = ? ORDER BY created_at ASC LIMIT 20'
-    ).all(chatId) as { role: string; content: string }[]
+    const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+    if (!win) {
+      event.sender.send('chat:error', 'Internal: no window found.')
+      return
+    }
 
-    const win = BrowserWindow.getFocusedWindow()!
     event.sender.send('llm:provider', getActiveProvider())
 
-    // Lazy-load MCP tools only if the message triggers a known keyword
+    // Lazy-load MCP tools only if a known keyword is in the message
     let mcpTools: any[] = []
     const triggeredServerId = detectMcpServerId(userMessage)
     if (triggeredServerId) {
       try {
-        console.log(`🔌 Lazy-loading MCP: ${triggeredServerId}`)
+        console.log(`[main] Lazy-loading MCP: ${triggeredServerId}`)
         mcpTools = await loadMcpServer(MCP_CONFIG_PATH, triggeredServerId)
-        console.log(`✅ MCP loaded: ${mcpTools.length} tools from ${triggeredServerId}`)
       } catch (err: any) {
-        console.warn(`⚠️  MCP lazy-load failed for ${triggeredServerId}: ${err.message}`)
-        // Continue without MCP tools — don't block the message
+        console.warn(`[main] MCP lazy-load failed: ${err.message}`)
       }
     }
 
     try {
-      const fullResponse = await runAgentLoop(
+      const fullResponse = await runAgentLoopWithFallback(
         geminiKey, grokKey, formatHistory(history), win,
         (chunk) => event.sender.send('chat:chunk', chunk),
-        (step)  => event.sender.send('chat:step', step),
+        (step)  => {
+          event.sender.send('chat:step', step)
+          if (step.type === 'provider_switched') {
+            event.sender.send('llm:provider', step.to)
+          }
+        },
         mcpTools
       )
 
@@ -167,12 +227,11 @@ app.whenReady().then(async () => {
       db.prepare('INSERT INTO messages (chat_id, role, content) VALUES (?, ?, ?)')
         .run(chatId, 'assistant', fullResponse)
 
-      // Auto-name on first exchange
       const msgCount = (db.prepare(
         'SELECT COUNT(*) as count FROM messages WHERE chat_id = ?'
       ).get(chatId) as { count: number }).count
 
-      if (msgCount <= 2) {
+      if (msgCount <= 2 && saveUserMessage) {
         generateChatTitle(geminiKey, grokKey, userMessage, fullResponse)
           .then(title => {
             db.prepare('UPDATE chats SET title = ? WHERE id = ?').run(title, chatId)
@@ -181,24 +240,29 @@ app.whenReady().then(async () => {
           .catch(() => {})
       }
     } catch (err: any) {
+      const from = getActiveProvider()
+      console.error(`[main] Chat failed | provider=${from} | ${err?.message}`)
+
       if (isQuotaError(err)) {
         event.sender.send('llm:quota-hit', {
-          from: getActiveProvider(), hasGrok: !!grokKey, hasGemini: !!geminiKey
+          from, hasGrok: !!grokKey, hasGemini: !!geminiKey,
+          message: humanizeError(err, from),
         })
       } else {
-        event.sender.send('chat:error', err.message ?? 'Unknown error')
+        event.sender.send('chat:error', humanizeError(err, from))
       }
     }
+  }
+
+  ipcMain.handle('chat:send', async (event, chatId: number, userMessage: string) => {
+    const history = db.prepare(
+      'SELECT role, content FROM messages WHERE chat_id = ? ORDER BY created_at ASC LIMIT 20'
+    ).all(chatId) as { role: string; content: string }[]
+    // history currently excludes the new message; runChat will save it
+    await runChat(event, chatId, userMessage, [...history, { role: 'user', content: userMessage }], true)
   })
 
-  // ── LLM: Retry ────────────────────────────────────────
   ipcMain.handle('chat:retry', async (event, chatId: number) => {
-    const geminiKey = storeGet('gemini_api_key')
-    const grokKey   = storeGet('grok_api_key')
-    if (!geminiKey && !grokKey) {
-      event.sender.send('chat:error', 'No API key found.'); return
-    }
-
     const msgs = db.prepare(
       'SELECT role, content FROM messages WHERE chat_id = ? ORDER BY created_at ASC LIMIT 20'
     ).all(chatId) as { role: string; content: string }[]
@@ -211,26 +275,8 @@ app.whenReady().then(async () => {
       msgs.pop()
     }
 
-    const win = BrowserWindow.getFocusedWindow()!
-    event.sender.send('llm:provider', getActiveProvider())
-
-    try {
-      const fullResponse = await runAgentLoop(
-        geminiKey, grokKey, formatHistory(msgs), win,
-        (chunk) => event.sender.send('chat:chunk', chunk),
-        (step)  => event.sender.send('chat:step', step),
-        [] // retry always uses no MCP tools
-      )
-      event.sender.send('chat:done')
-      db.prepare('INSERT INTO messages (chat_id, role, content) VALUES (?, ?, ?)')
-        .run(chatId, 'assistant', fullResponse)
-    } catch (err: any) {
-      if (isQuotaError(err)) {
-        event.sender.send('llm:quota-hit', { from: getActiveProvider(), hasGrok: !!grokKey, hasGemini: !!geminiKey })
-      } else {
-        event.sender.send('chat:error', err.message ?? 'Unknown error')
-      }
-    }
+    const lastUser = [...msgs].reverse().find(m => m.role === 'user')
+    await runChat(event, chatId, lastUser?.content ?? '', msgs, false)
   })
 
   // ── Tool Approval ─────────────────────────────────────
@@ -244,6 +290,30 @@ app.whenReady().then(async () => {
   })
   ipcMain.handle('llm:getProvider', () => getActiveProvider())
 
+  // Validate an API key by making a cheap test call. Returns {ok, error?}
+  ipcMain.handle('llm:testKey', async (_e, provider: LlmProvider, apiKey: string) => {
+    try {
+      console.log(`[main] Testing ${provider} key…`)
+      if (provider === 'gemini') {
+        const { ChatGoogleGenerativeAI } = await import('@langchain/google-genai')
+        const m = new ChatGoogleGenerativeAI({ apiKey, model: 'gemini-2.5-flash', apiVersion: 'v1beta' })
+        await m.invoke('ping')
+      } else {
+        const { ChatOpenAI } = await import('@langchain/openai')
+        const m = new ChatOpenAI({
+          apiKey, modelName: 'grok-3-fast',
+          configuration: { baseURL: 'https://api.x.ai/v1' },
+        })
+        await m.invoke('ping')
+      }
+      console.log(`[main] ${provider} key: OK`)
+      return { ok: true }
+    } catch (err: any) {
+      console.log(`[main] ${provider} key: FAILED — ${err?.message}`)
+      return { ok: false, error: humanizeError(err, provider) }
+    }
+  })
+
   // ── MCP ───────────────────────────────────────────────
   ipcMain.handle('mcp:getConfig', () => readMcpConfig(MCP_CONFIG_PATH))
   ipcMain.handle('mcp:getStatus', () => getMcpStatus())
@@ -252,13 +322,12 @@ app.whenReady().then(async () => {
     const config = readMcpConfig(MCP_CONFIG_PATH)
     const server = config.servers.find((s: any) => s.id === serverId)
     if (server) { server.enabled = enabled; writeMcpConfig(MCP_CONFIG_PATH, config) }
-    if (!enabled) {
-      // Disconnect immediately if disabling
-      await disconnectAll()
-    }
+    if (!enabled) await disconnectAll()
     return true
   })
 
+  // Save MCP config AND test-connect to verify it actually works.
+  // Returns { ok, toolCount?, error? } so the UI can show ✓ or ✗.
   ipcMain.handle('mcp:enableWithEnv', async (_e, serverId: string, envValues: Record<string, string>, serverConfig: any) => {
     for (const [key, value] of Object.entries(envValues)) {
       storeSet(`mcp_env_${serverId}_${key}`, value)
@@ -278,9 +347,10 @@ app.whenReady().then(async () => {
       existing.envKeys = serverConfig.envVars.map((e: any) => e.key)
     }
     writeMcpConfig(MCP_CONFIG_PATH, config)
-    // Do NOT auto-init — will be lazy-loaded on next relevant message
-    console.log(`✅ MCP config saved for: ${serverId} (will lazy-load on next use)`)
-    return true
+
+    // Actually test the connection so the user knows it works
+    const result = await testMcpServer(MCP_CONFIG_PATH, serverId)
+    return result
   })
 
   createWindow()
@@ -288,4 +358,11 @@ app.whenReady().then(async () => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
+})
+
+process.on('uncaughtException', (err) => {
+  console.error('[main] Uncaught exception:', err)
+})
+process.on('unhandledRejection', (err) => {
+  console.error('[main] Unhandled rejection:', err)
 })

@@ -2,18 +2,12 @@ import { useState, useEffect } from 'react'
 import { MCP_CATALOG, CATEGORIES, type McpCatalogEntry } from '../data/mcpCatalog'
 
 interface EnabledMap { [id: string]: boolean }
+interface TestMap { [id: string]: { ok: boolean; toolCount?: number; error?: string } }
 
 function Logo({ entry }: { entry: McpCatalogEntry }) {
   const [failed, setFailed] = useState(false)
   if (entry.logoUrl && !failed) {
-    return (
-      <img
-        src={entry.logoUrl}
-        alt={entry.name}
-        className="mcp-tile-logo"
-        onError={() => setFailed(true)}
-      />
-    )
+    return <img src={entry.logoUrl} alt={entry.name} className="mcp-tile-logo" onError={() => setFailed(true)} />
   }
   return <span className="mcp-tile-emoji">{entry.icon}</span>
 }
@@ -21,14 +15,7 @@ function Logo({ entry }: { entry: McpCatalogEntry }) {
 function DetailLogo({ entry }: { entry: McpCatalogEntry }) {
   const [failed, setFailed] = useState(false)
   if (entry.logoUrl && !failed) {
-    return (
-      <img
-        src={entry.logoUrl}
-        alt={entry.name}
-        className="mkt-detail-logo"
-        onError={() => setFailed(true)}
-      />
-    )
+    return <img src={entry.logoUrl} alt={entry.name} className="mkt-detail-logo" onError={() => setFailed(true)} />
   }
   return <span className="mkt-detail-emoji">{entry.icon}</span>
 }
@@ -39,6 +26,7 @@ export function McpMarketplace() {
   const [selected, setSelected] = useState<McpCatalogEntry | null>(null)
   const [envValues, setEnvValues] = useState<Record<string, string>>({})
   const [enabledMap, setEnabledMap] = useState<EnabledMap>({})
+  const [testMap, setTestMap] = useState<TestMap>({})
   const [loading, setLoading] = useState<string | null>(null)
 
   useEffect(() => {
@@ -62,8 +50,14 @@ export function McpMarketplace() {
   const handleEnable = async () => {
     if (!selected) return
     setLoading(selected.id)
-    await window.electronAPI.enableMcpWithEnv(selected.id, envValues, selected)
-    setEnabledMap(p => ({ ...p, [selected.id]: true }))
+    setTestMap(p => ({ ...p, [selected.id]: undefined as any }))
+
+    const result = await window.electronAPI.enableMcpWithEnv(selected.id, envValues, selected)
+    setTestMap(p => ({ ...p, [selected.id]: result }))
+
+    if (result.ok) {
+      setEnabledMap(p => ({ ...p, [selected.id]: true }))
+    }
     setLoading(null)
   }
 
@@ -71,6 +65,7 @@ export function McpMarketplace() {
     setLoading(id)
     await window.electronAPI.toggleMcpServer(id, false)
     setEnabledMap(p => ({ ...p, [id]: false }))
+    setTestMap(p => ({ ...p, [id]: undefined as any }))
     setLoading(null)
   }
 
@@ -83,17 +78,13 @@ export function McpMarketplace() {
   })
 
   const hasPanel = !!selected
+  const selectedTest = selected ? testMap[selected.id] : null
 
   return (
     <div className="mkt-shell">
-      {/* Left */}
       <div className="mkt-left" style={{ width: hasPanel ? '52%' : '100%' }}>
         <div className="mkt-search">
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search integrations…"
-          />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search integrations…" />
         </div>
 
         <div className="mkt-cats">
@@ -102,9 +93,7 @@ export function McpMarketplace() {
               key={cat.id}
               className={`cat-chip ${category === cat.id ? 'active' : ''}`}
               onClick={() => setCategory(cat.id)}
-            >
-              {cat.icon} {cat.label}
-            </button>
+            >{cat.icon} {cat.label}</button>
           ))}
         </div>
 
@@ -132,17 +121,13 @@ export function McpMarketplace() {
             )
           })}
           {filtered.length === 0 && (
-            <div style={{
-              gridColumn: '1/-1', textAlign: 'center',
-              padding: '28px', color: 'var(--text3)', fontSize: 13,
-            }}>
+            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '28px', color: 'var(--text3)', fontSize: 13 }}>
               No integrations match "{search}"
             </div>
           )}
         </div>
       </div>
 
-      {/* Right — detail */}
       {selected && (
         <div className="mkt-right" style={{ width: '48%' }}>
           <div className="mkt-detail-hdr">
@@ -153,7 +138,7 @@ export function McpMarketplace() {
                 <div className="mkt-detail-cat">
                   {selected.category}
                   {enabledMap[selected.id] && (
-                    <span className="mkt-active-badge"> · Active</span>
+                    <span className="mkt-active-badge"> · Connected</span>
                   )}
                 </div>
               </div>
@@ -167,6 +152,24 @@ export function McpMarketplace() {
             {selected.warning && (
               <div className="warn-box">⚠ {selected.warning}</div>
             )}
+
+            {/* Test result banner */}
+            {selectedTest?.ok && (
+              <div className="setup-result ok" style={{ marginBottom: 14 }}>
+                ✓ Connected — {selectedTest.toolCount} tools available. DigiMon will use this automatically when relevant.
+              </div>
+            )}
+            {selectedTest && !selectedTest.ok && (
+              <div className="setup-result err" style={{ marginBottom: 14 }}>
+                ✗ Connection failed: {selectedTest.error}
+              </div>
+            )}
+
+            <div className="detail-section-title">How it works</div>
+            <div style={{ fontSize: 12.5, color: 'var(--text2)', lineHeight: 1.6, marginBottom: 16 }}>
+              Click <strong>Enable</strong> — DigiMon installs the server and tests the connection immediately.
+              If it works, it'll be used automatically when you ask DigiMon to do something that needs it. No extra clicks.
+            </div>
 
             <div className="detail-section-title">Setup Guide</div>
             <div style={{ marginBottom: 18 }}>
@@ -198,9 +201,7 @@ export function McpMarketplace() {
             )}
 
             <div className="docs-link-row">
-              📖 <a href={selected.docsUrl} target="_blank" rel="noreferrer">
-                Official documentation →
-              </a>
+              📖 <a href={selected.docsUrl} target="_blank" rel="noreferrer">Official documentation →</a>
             </div>
           </div>
 
@@ -211,7 +212,7 @@ export function McpMarketplace() {
                 disabled={loading === selected.id}
                 onClick={() => handleDisable(selected.id)}
               >
-                {loading === selected.id ? 'Disconnecting…' : '✕ Disable'}
+                {loading === selected.id ? 'Disabling…' : '✕ Disable'}
               </button>
             ) : (
               <button
@@ -219,7 +220,7 @@ export function McpMarketplace() {
                 disabled={loading === selected.id}
                 onClick={handleEnable}
               >
-                {loading === selected.id ? 'Connecting…' : '✓ Enable Integration'}
+                {loading === selected.id ? 'Connecting…' : '✓ Enable & Test Connection'}
               </button>
             )}
           </div>

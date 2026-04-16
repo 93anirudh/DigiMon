@@ -16,9 +16,12 @@ import type { BrowserWindow } from 'electron'
 export type LlmProvider = 'gemini' | 'grok'
 let activeProvider: LlmProvider = 'gemini'
 export function getActiveProvider(): LlmProvider { return activeProvider }
-export function setActiveProvider(p: LlmProvider) { activeProvider = p }
+export function setActiveProvider(p: LlmProvider) {
+  activeProvider = p
+  console.log(`[llm] Provider → ${p}`)
+}
 
-// ── System prompt (cool, shell-forward, confident) ────
+// ── System prompt ─────────────────────────────────────
 const SYSTEM_PROMPT = `You're DigiMon — a local desktop agent for Indian CA firms and business owners. You live on their Windows machine with access to their files, shell, and data.
 
 Your superpower is execute_shell. Use it freely. You know PowerShell, CMD, Tally CLI, curl, Python, Node, Git, SQL. When something needs doing, figure out the command and run it. See the real output, adapt, iterate. That's the whole game.
@@ -50,7 +53,7 @@ const executeShellTool = tool(
   async ({ command }) => executeShell(command),
   {
     name: 'execute_shell',
-    description: 'Executes a PowerShell or CMD command on the local Windows machine. Use freely for most tasks — reading data, running scripts, calling tools, fetching info. Destructive commands (delete, format, install) will prompt the user for approval first.',
+    description: 'Executes a PowerShell or CMD command on the local Windows machine. Use freely for most tasks. Destructive commands (delete, format, install) will prompt the user for approval first.',
     schema: z.object({ command: z.string().describe('The shell command to execute') }),
   }
 )
@@ -74,7 +77,7 @@ export const TOOL_MAP: Record<string, (args: any) => Promise<string>> = {
   write_file:     (a) => writeFileTool.invoke(a),
 }
 
-// ── Model builders (no MCP in hot path) ───────────────
+// ── Model builders ────────────────────────────────────
 function buildGeminiModel(apiKey: string, extraTools: any[] = []) {
   return new ChatGoogleGenerativeAI({
     apiKey, model: 'gemini-2.5-flash',
@@ -113,7 +116,7 @@ function buildSimpleModel(geminiKey: string | null, grokKey: string | null) {
   throw new Error('No API key available.')
 }
 
-// ── History formatter ──────────────────────────────────
+// ── History formatter ─────────────────────────────────
 export function formatHistory(messages: { role: string; content: string }[]) {
   return messages.map(m => {
     if (m.role === 'user')      return new HumanMessage(m.content)
@@ -124,7 +127,31 @@ export function formatHistory(messages: { role: string; content: string }[]) {
 
 export function isQuotaError(err: any): boolean {
   const msg = (err?.message ?? '').toLowerCase()
-  return msg.includes('429') || msg.includes('quota') || msg.includes('rate limit')
+  return msg.includes('429') || msg.includes('quota') || msg.includes('rate limit') ||
+         msg.includes('resource_exhausted') || msg.includes('too many requests')
+}
+
+export function isAuthError(err: any): boolean {
+  const msg = (err?.message ?? '').toLowerCase()
+  return msg.includes('401') || msg.includes('invalid api key') ||
+         msg.includes('api_key_invalid') || msg.includes('permission_denied') ||
+         msg.includes('unauthenticated')
+}
+
+export function isNetworkError(err: any): boolean {
+  const msg = (err?.message ?? '').toLowerCase()
+  return msg.includes('enotfound') || msg.includes('econnrefused') ||
+         msg.includes('network') || msg.includes('timeout') ||
+         msg.includes('etimedout') || msg.includes('fetch failed')
+}
+
+// Turn any error into a clean human message
+export function humanizeError(err: any, provider: LlmProvider): string {
+  if (isQuotaError(err))   return `${provider === 'gemini' ? 'Gemini' : 'Grok'} hit its rate limit.`
+  if (isAuthError(err))    return `${provider === 'gemini' ? 'Gemini' : 'Grok'} API key is invalid. Check it in Settings.`
+  if (isNetworkError(err)) return `Network issue — can't reach the ${provider === 'gemini' ? 'Gemini' : 'Grok'} API. Check your connection.`
+  const msg = err?.message ?? 'Unknown error'
+  return msg.length > 160 ? msg.slice(0, 160) + '…' : msg
 }
 
 export async function generateChatTitle(
@@ -143,15 +170,26 @@ Assistant: ${assistantMsg.slice(0, 150)}`
 
 // ── Step event type ────────────────────────────────────
 export interface StepEvent {
-  type: 'thinking' | 'tool_call' | 'tool_result' | 'done'
+  type: 'thinking' | 'tool_call' | 'tool_result' | 'done' | 'provider_switched'
   toolName?: string
   toolArgs?: any
   result?: string
   iteration?: number
+  from?: LlmProvider
+  to?: LlmProvider
+}
+
+// ── Invoke with timeout — never hang forever ──────────
+async function invokeWithTimeout(model: any, messages: any[], timeoutMs = 45000): Promise<any> {
+  return Promise.race([
+    model.invoke(messages),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`Model invoke timed out after ${timeoutMs / 1000}s`)), timeoutMs)
+    ),
+  ])
 }
 
 // ── The Agent Loop ─────────────────────────────────────
-// mcpTools is empty by default — only populated when lazy-loaded for a specific task
 export async function runAgentLoop(
   geminiKey: string | null,
   grokKey: string | null,
@@ -161,10 +199,11 @@ export async function runAgentLoop(
   onStep: (step: StepEvent) => void,
   mcpTools: any[] = []
 ): Promise<string> {
+  console.log(`[agent] Starting loop | provider=${activeProvider} | messages=${messages.length} | mcpTools=${mcpTools.length}`)
+
   const model = buildModel(geminiKey, grokKey, mcpTools)
   const currentMessages = [new SystemMessage(SYSTEM_PROMPT), ...messages]
 
-  // Build tool map: local tools + any lazy-loaded MCP tools
   const dynamicToolMap: Record<string, (args: any) => Promise<string>> = { ...TOOL_MAP }
   for (const mcpTool of mcpTools) {
     dynamicToolMap[mcpTool.name] = (args: any) => mcpTool.invoke(args)
@@ -172,11 +211,13 @@ export async function runAgentLoop(
 
   for (let i = 0; i < 5; i++) {
     onStep({ type: 'thinking', iteration: i + 1 })
+    console.log(`[agent] Iteration ${i + 1}: invoking model…`)
 
-    const response = await model.invoke(currentMessages)
+    const response = await invokeWithTimeout(model, currentMessages)
     currentMessages.push(response)
 
     const toolCalls = response.tool_calls ?? []
+    console.log(`[agent] Response received | tool_calls=${toolCalls.length}`)
 
     if (toolCalls.length === 0) {
       const finalText = typeof response.content === 'string'
@@ -192,17 +233,15 @@ export async function runAgentLoop(
       const toolArgs = tc.args
 
       onStep({ type: 'tool_call', toolName, toolArgs })
+      console.log(`[agent] Tool call: ${toolName}`, toolArgs)
 
-      // Smart approval logic:
-      //  - write_file → ALWAYS asks for approval
-      //  - execute_shell → only asks if the command is destructive (del, rm, format, installers, etc.)
-      //  - read-only shell (dir, ls, cat, git status, curl GET, python --version) → runs immediately
       const needsApproval =
         DANGEROUS_TOOLS.has(toolName) ||
         (toolName === 'execute_shell' && isDestructiveShell(toolArgs.command))
 
       let toolResult: string
       if (needsApproval) {
+        console.log(`[agent] Awaiting approval for: ${toolName}`)
         const approved = await requestApproval(win, toolName, toolArgs)
         toolResult = approved
           ? (await dynamicToolMap[toolName]?.(toolArgs)) ?? 'Tool not found'
@@ -212,7 +251,6 @@ export async function runAgentLoop(
       }
 
       onStep({ type: 'tool_result', toolName, result: toolResult.slice(0, 200) })
-
       currentMessages.push(
         new ToolMessage({ content: toolResult, tool_call_id: tc.id ?? toolName })
       )
@@ -220,4 +258,42 @@ export async function runAgentLoop(
   }
 
   return 'Maximum tool iterations reached.'
+}
+
+// ── Auto-fallback wrapper ──────────────────────────────
+// If the active provider errors (quota/network), automatically switch to the
+// other provider and retry once. Emits a provider_switched step so the UI can
+// show a subtle toast.
+export async function runAgentLoopWithFallback(
+  geminiKey: string | null,
+  grokKey: string | null,
+  messages: any[],
+  win: BrowserWindow,
+  onChunk: (text: string) => void,
+  onStep: (step: StepEvent) => void,
+  mcpTools: any[] = []
+): Promise<string> {
+  try {
+    return await runAgentLoop(geminiKey, grokKey, messages, win, onChunk, onStep, mcpTools)
+  } catch (err: any) {
+    const from = getActiveProvider()
+    const hasOther = from === 'gemini' ? !!grokKey : !!geminiKey
+    const recoverable = isQuotaError(err) || isNetworkError(err)
+
+    if (hasOther && recoverable) {
+      const to: LlmProvider = from === 'gemini' ? 'grok' : 'gemini'
+      console.log(`[agent] ${from} failed (${humanizeError(err, from)}) — auto-switching to ${to}`)
+      setActiveProvider(to)
+      onStep({ type: 'provider_switched', from, to })
+      try {
+        return await runAgentLoop(geminiKey, grokKey, messages, win, onChunk, onStep, mcpTools)
+      } catch (retryErr: any) {
+        // Both failed — restore original, bubble up
+        setActiveProvider(from)
+        throw retryErr
+      }
+    }
+
+    throw err
+  }
 }
