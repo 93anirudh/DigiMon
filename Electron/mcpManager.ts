@@ -13,7 +13,7 @@ export interface McpServerConfig {
   command: string
   args: string[]
   env?: Record<string, string>
-  envKeys?: string[]  // keys to pull from secure store
+  envKeys?: string[]
   enabled: boolean
 }
 
@@ -22,6 +22,7 @@ export interface McpConfig {
 }
 
 const activeClients: Map<string, Client> = new Map()
+// All registered MCP langchain tools across all connected servers
 let mcpLangchainTools: any[] = []
 
 export function readMcpConfig(configPath: string): McpConfig {
@@ -39,9 +40,9 @@ export function writeMcpConfig(configPath: string, config: McpConfig) {
 
 async function connectServer(server: McpServerConfig): Promise<void> {
   try {
-    const client = new Client({ name: 'practice-os', version: '1.0.0' })
+    const client = new Client({ name: 'digimon', version: '1.0.0' })
 
-    // Pull stored env vars for this server (API keys etc.)
+    // Pull stored env vars (API keys etc.) from secure store
     const secureEnv: Record<string, string> = {}
     if (server.envKeys && server.envKeys.length > 0) {
       for (const key of server.envKeys) {
@@ -56,7 +57,7 @@ async function connectServer(server: McpServerConfig): Promise<void> {
       env: {
         ...process.env,
         ...(server.env ?? {}),
-        ...secureEnv,           // ← secure store values injected here
+        ...secureEnv,
       } as Record<string, string>,
     })
 
@@ -65,6 +66,7 @@ async function connectServer(server: McpServerConfig): Promise<void> {
     console.log(`✅ MCP connected: ${server.name}`)
   } catch (err: any) {
     console.error(`❌ MCP failed: ${server.name} — ${err.message}`)
+    throw err
   }
 }
 
@@ -77,45 +79,63 @@ export async function disconnectAll() {
   mcpLangchainTools = []
 }
 
-export async function initializeMcp(configPath: string): Promise<void> {
-  await disconnectAll()
+// ── Lazy-load a single MCP server on demand ────────────
+// Returns the LangChain tools registered from that server.
+// If already connected, returns cached tools immediately (no re-init).
+export async function loadMcpServer(
+  configPath: string,
+  serverId: string
+): Promise<any[]> {
+  // Return cached tools if this server is already connected
+  if (activeClients.has(serverId)) {
+    const cached = mcpLangchainTools.filter(t => t.name.startsWith(`${serverId}__`))
+    console.log(`⚡ MCP cache hit: ${serverId} (${cached.length} tools)`)
+    return cached
+  }
 
   const config = readMcpConfig(configPath)
-  const enabled = config.servers.filter(s => s.enabled)
-
-  for (const server of enabled) {
-    await connectServer(server)
+  const server = config.servers.find(s => s.id === serverId && s.enabled)
+  if (!server) {
+    console.warn(`⚠️  MCP server "${serverId}" not found or not enabled in config`)
+    return []
   }
 
-  mcpLangchainTools = []
-  for (const [serverId, client] of activeClients) {
-    try {
-      const { tools } = await client.listTools()
-      for (const mcpTool of tools) {
-        const lct = tool(
-          async (args: Record<string, any>) => {
-            const result = await client.callTool({ name: mcpTool.name, arguments: args })
-            const text = result.content
-              .filter((c: any) => c.type === 'text')
-              .map((c: any) => c.text)
-              .join('\n')
-            return text || JSON.stringify(result.content)
-          },
-          {
-            name: `${serverId}__${mcpTool.name}`,
-            description: `[${serverId}] ${mcpTool.description ?? mcpTool.name}`,
-            schema: z.object(buildZodSchema(mcpTool.inputSchema)),
-          }
-        )
-        mcpLangchainTools.push(lct)
-      }
-      console.log(`🔧 Registered ${tools.length} tools from: ${serverId}`)
-    } catch (err: any) {
-      console.error(`Failed to list tools from ${serverId}: ${err.message}`)
+  await connectServer(server)
+
+  const client = activeClients.get(serverId)
+  if (!client) return []
+
+  const newTools: any[] = []
+  try {
+    const { tools } = await client.listTools()
+    for (const mcpTool of tools) {
+      const lct = tool(
+        async (args: Record<string, any>) => {
+          const result = await client.callTool({ name: mcpTool.name, arguments: args })
+          const text = result.content
+            .filter((c: any) => c.type === 'text')
+            .map((c: any) => c.text)
+            .join('\n')
+          return text || JSON.stringify(result.content)
+        },
+        {
+          name: `${serverId}__${mcpTool.name}`,
+          description: `[${serverId}] ${mcpTool.description ?? mcpTool.name}`,
+          schema: z.object(buildZodSchema(mcpTool.inputSchema)),
+        }
+      )
+      newTools.push(lct)
+      mcpLangchainTools.push(lct)
     }
+    console.log(`🔧 Lazy-loaded ${tools.length} tools from: ${serverId}`)
+  } catch (err: any) {
+    console.error(`Failed to list tools from ${serverId}: ${err.message}`)
   }
+
+  return newTools
 }
 
+// getMcpTools() kept for compatibility but now only returns already-loaded tools
 export function getMcpTools(): any[] { return mcpLangchainTools }
 
 export function getMcpStatus(): { id: string; connected: boolean }[] {

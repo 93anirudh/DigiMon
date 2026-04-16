@@ -9,12 +9,32 @@ import {
 } from './llmService'
 import { resolveApproval } from './approvalGate'
 import {
-  initializeMcp, readMcpConfig, writeMcpConfig, getMcpStatus
+  readMcpConfig, writeMcpConfig, getMcpStatus,
+  loadMcpServer, disconnectAll
 } from './mcpManager'
 
 const MCP_CONFIG_PATH = app.isPackaged
   ? path.join(process.resourcesPath, 'mcp_config.json')
   : path.join(app.getAppPath(), 'mcp_config.json')
+
+// ── Keyword → MCP server ID map for lazy-loading ──────
+// Add entries here as MCPs are debugged and confirmed working
+const MCP_TRIGGER_MAP: Record<string, string> = {
+  // 'drive':      'google-workspace',
+  // 'gdrive':     'google-workspace',
+  // 'google doc': 'google-workspace',
+  // 'filesystem': 'filesystem',
+  // 'browse':     'puppeteer',
+  // 'screenshot': 'puppeteer',
+}
+
+function detectMcpServerId(userMessage: string): string | null {
+  const lower = userMessage.toLowerCase()
+  for (const [keyword, serverId] of Object.entries(MCP_TRIGGER_MAP)) {
+    if (lower.includes(keyword)) return serverId
+  }
+  return null
+}
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -22,8 +42,7 @@ function createWindow() {
     height: 840,
     minWidth: 900,
     minHeight: 600,
-    title: 'Practice OS',
-    // No titleBarStyle: 'hidden' — that breaks Windows dragging
+    title: 'DigiMon',
     backgroundColor: '#0A0A0D',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -33,7 +52,6 @@ function createWindow() {
     },
   })
 
-  // Content Security Policy — allow Google Fonts and local content
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({
       responseHeaders: {
@@ -62,10 +80,10 @@ app.whenReady().then(async () => {
   const db = getDb()
   console.log('✅ SQLite ready at:', app.getPath('userData'))
 
-  // MCP initialization — non-blocking, errors are caught inside
-  initializeMcp(MCP_CONFIG_PATH).catch(err =>
-    console.warn('MCP init warning:', err.message)
-  )
+  // MCP disabled on startup — lazy-loaded per task via detectMcpServerId()
+  // To re-enable a server: uncomment its entry in MCP_TRIGGER_MAP above,
+  // verify it works with loadMcpServer(), then add it to the map.
+  console.log('ℹ️  MCP auto-init skipped — lazy-load mode active')
 
   // ── Secure Store ──────────────────────────────────────
   ipcMain.handle('store:set', (_e, key: string, value: string) => {
@@ -123,11 +141,26 @@ app.whenReady().then(async () => {
     const win = BrowserWindow.getFocusedWindow()!
     event.sender.send('llm:provider', getActiveProvider())
 
+    // Lazy-load MCP tools only if the message triggers a known keyword
+    let mcpTools: any[] = []
+    const triggeredServerId = detectMcpServerId(userMessage)
+    if (triggeredServerId) {
+      try {
+        console.log(`🔌 Lazy-loading MCP: ${triggeredServerId}`)
+        mcpTools = await loadMcpServer(MCP_CONFIG_PATH, triggeredServerId)
+        console.log(`✅ MCP loaded: ${mcpTools.length} tools from ${triggeredServerId}`)
+      } catch (err: any) {
+        console.warn(`⚠️  MCP lazy-load failed for ${triggeredServerId}: ${err.message}`)
+        // Continue without MCP tools — don't block the message
+      }
+    }
+
     try {
       const fullResponse = await runAgentLoop(
         geminiKey, grokKey, formatHistory(history), win,
         (chunk) => event.sender.send('chat:chunk', chunk),
-        (step)  => event.sender.send('chat:step', step)
+        (step)  => event.sender.send('chat:step', step),
+        mcpTools
       )
 
       event.sender.send('chat:done')
@@ -170,7 +203,6 @@ app.whenReady().then(async () => {
       'SELECT role, content FROM messages WHERE chat_id = ? ORDER BY created_at ASC LIMIT 20'
     ).all(chatId) as { role: string; content: string }[]
 
-    // Remove last assistant message to avoid duplicating it
     const last = msgs[msgs.length - 1]
     if (last?.role === 'assistant') {
       db.prepare(
@@ -186,7 +218,8 @@ app.whenReady().then(async () => {
       const fullResponse = await runAgentLoop(
         geminiKey, grokKey, formatHistory(msgs), win,
         (chunk) => event.sender.send('chat:chunk', chunk),
-        (step)  => event.sender.send('chat:step', step)
+        (step)  => event.sender.send('chat:step', step),
+        [] // retry always uses no MCP tools
       )
       event.sender.send('chat:done')
       db.prepare('INSERT INTO messages (chat_id, role, content) VALUES (?, ?, ?)')
@@ -219,7 +252,10 @@ app.whenReady().then(async () => {
     const config = readMcpConfig(MCP_CONFIG_PATH)
     const server = config.servers.find((s: any) => s.id === serverId)
     if (server) { server.enabled = enabled; writeMcpConfig(MCP_CONFIG_PATH, config) }
-    await initializeMcp(MCP_CONFIG_PATH).catch(() => {})
+    if (!enabled) {
+      // Disconnect immediately if disabling
+      await disconnectAll()
+    }
     return true
   })
 
@@ -242,7 +278,8 @@ app.whenReady().then(async () => {
       existing.envKeys = serverConfig.envVars.map((e: any) => e.key)
     }
     writeMcpConfig(MCP_CONFIG_PATH, config)
-    await initializeMcp(MCP_CONFIG_PATH).catch(() => {})
+    // Do NOT auto-init — will be lazy-loaded on next relevant message
+    console.log(`✅ MCP config saved for: ${serverId} (will lazy-load on next use)`)
     return true
   })
 

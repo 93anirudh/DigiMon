@@ -7,7 +7,6 @@ import { tool } from '@langchain/core/tools'
 import { z } from 'zod'
 import { listDirectory, readFile, executeShell, writeFile, DANGEROUS_TOOLS } from './tools'
 import { requestApproval } from './approvalGate'
-import { getMcpTools } from './mcpManager'
 import type { BrowserWindow } from 'electron'
 
 // ── Active provider state ─────────────────────────────
@@ -16,22 +15,11 @@ let activeProvider: LlmProvider = 'gemini'
 export function getActiveProvider(): LlmProvider { return activeProvider }
 export function setActiveProvider(p: LlmProvider) { activeProvider = p }
 
-// ── System prompt ─────────────────────────────────────
-const SYSTEM_PROMPT = `You are Practice OS, an expert AI assistant built for Indian Chartered Accountant (CA) firms and financial professionals.
-
-RESPONSE FORMATTING — follow these rules on every response:
-- TABLES: Use markdown tables for any comparison, list with attributes, financial data, or structured information. Never use bullet lists when a table would be cleaner.
-- MERMAID DIAGRAMS: Whenever explaining a process, workflow, relationship, or sequence — always generate a Mermaid diagram using a proper fenced code block like this:
-\`\`\`mermaid
-graph TD
-  A --> B
-\`\`\`
-  Use: flowchart TD or LR for processes, sequenceDiagram for step sequences, pie for distributions, gantt for timelines, erDiagram for data models.
-- STRUCTURE: Use ## and ### headers to organize longer responses.
-- EMPHASIS: Bold (**text**) key numbers, deadlines, and section names.
-- CODE: Always tag code blocks with the language name (python, sql, bash, etc.)
-
-Domain: GST, TDS, ITR, Form 3CD tax audit, MCA filings, GSTR-2B reconciliation, Indian income tax law. Be concise, accurate, and always prefer visual structure over plain text.`
+// ── System prompt (lean — saves ~750 tokens per message) ──
+const SYSTEM_PROMPT = `You are DigiMon, an AI agent for Indian CA firms.
+Use markdown tables for structured data. Use mermaid code blocks for workflows/processes.
+Prefer execute_shell for file ops, data tasks, and automation — it is the most capable tool.
+Domain: GST, TDS, ITR, Form 3CD, MCA, GSTR-2B. Be concise and prefer visual structure.`
 
 // ── Tool definitions ──────────────────────────────────
 const listDirectoryTool = tool(
@@ -78,27 +66,29 @@ export const TOOL_MAP: Record<string, (args: any) => Promise<string>> = {
   write_file:     (a) => writeFileTool.invoke(a),
 }
 
-// ── Model builders ─────────────────────────────────────
-function buildGeminiModel(apiKey: string) {
-  const model = new ChatGoogleGenerativeAI({
+// ── Model builders (no MCP in hot path) ───────────────
+function buildGeminiModel(apiKey: string, extraTools: any[] = []) {
+  return new ChatGoogleGenerativeAI({
     apiKey, model: 'gemini-2.5-flash',
     streaming: false, apiVersion: 'v1beta',
-  })
-  return model.bindTools([...ALL_TOOLS, ...getMcpTools()])
+  }).bindTools([...ALL_TOOLS, ...extraTools])
 }
 
-function buildGrokModel(apiKey: string) {
-  const model = new ChatOpenAI({
+function buildGrokModel(apiKey: string, extraTools: any[] = []) {
+  return new ChatOpenAI({
     apiKey, modelName: 'grok-3-fast',
     configuration: { baseURL: 'https://api.x.ai/v1' },
     streaming: false,
-  })
-  return model.bindTools([...ALL_TOOLS, ...getMcpTools()])
+  }).bindTools([...ALL_TOOLS, ...extraTools])
 }
 
-export function buildModel(geminiKey: string | null, grokKey: string | null) {
-  if (activeProvider === 'grok' && grokKey) return buildGrokModel(grokKey)
-  if (geminiKey) return buildGeminiModel(geminiKey)
+export function buildModel(
+  geminiKey: string | null,
+  grokKey: string | null,
+  extraTools: any[] = []
+) {
+  if (activeProvider === 'grok' && grokKey) return buildGrokModel(grokKey, extraTools)
+  if (geminiKey) return buildGeminiModel(geminiKey, extraTools)
   throw new Error('No API key available for the active provider.')
 }
 
@@ -153,19 +143,22 @@ export interface StepEvent {
 }
 
 // ── The Agent Loop ─────────────────────────────────────
+// mcpTools is empty by default — only populated when lazy-loaded for a specific task
 export async function runAgentLoop(
   geminiKey: string | null,
   grokKey: string | null,
   messages: any[],
   win: BrowserWindow,
   onChunk: (text: string) => void,
-  onStep: (step: StepEvent) => void
+  onStep: (step: StepEvent) => void,
+  mcpTools: any[] = []
 ): Promise<string> {
-  const model = buildModel(geminiKey, grokKey)
+  const model = buildModel(geminiKey, grokKey, mcpTools)
   const currentMessages = [new SystemMessage(SYSTEM_PROMPT), ...messages]
 
+  // Build tool map: local tools + any lazy-loaded MCP tools
   const dynamicToolMap: Record<string, (args: any) => Promise<string>> = { ...TOOL_MAP }
-  for (const mcpTool of getMcpTools()) {
+  for (const mcpTool of mcpTools) {
     dynamicToolMap[mcpTool.name] = (args: any) => mcpTool.invoke(args)
   }
 
