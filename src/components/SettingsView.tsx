@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { McpMarketplace } from './McpMarketplace'
-import { WhatsAppSetup } from './WhatsAppSetup'
 
 function ApiKeyInput() {
   const [val, setVal] = useState('')
@@ -181,11 +180,6 @@ function GeneralTab() {
 function IntegrationsTab() {
   return (
     <>
-      <div className="settings-section">
-        <div className="settings-section-title">WhatsApp</div>
-        <WhatsAppSetup />
-      </div>
-
       <div className="settings-section">
         <div className="settings-section-title">Integrations</div>
         <p style={{ fontSize: 12.5, color: 'var(--text2)', marginBottom: 14, lineHeight: 1.6 }}>
