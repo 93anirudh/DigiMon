@@ -115,7 +115,7 @@ export function McpMarketplace() {
                     {entry.name}
                     {isOn && <span className="active-dot" />}
                   </div>
-                  <div className="mcp-tile-desc">{entry.description}</div>
+                  <div className="mcp-tile-desc">{entry.tagline}</div>
                 </div>
               </div>
             )
@@ -147,7 +147,15 @@ export function McpMarketplace() {
           </div>
 
           <div className="mkt-detail-body">
+            <div className="mkt-tagline">{selected.tagline}</div>
+
             <p className="mkt-detail-desc">{selected.description}</p>
+
+            {/* Concrete example — the most useful thing for a non-technical user */}
+            <div className="mkt-example">
+              <div className="mkt-example-label">Example</div>
+              <div className="mkt-example-text">{selected.example}</div>
+            </div>
 
             {selected.warning && (
               <div className="warn-box">⚠ {selected.warning}</div>
@@ -167,23 +175,30 @@ export function McpMarketplace() {
 
             <div className="detail-section-title">How it works</div>
             <div style={{ fontSize: 12.5, color: 'var(--text2)', lineHeight: 1.6, marginBottom: 16 }}>
-              Click <strong>Enable</strong> — DigiMon installs the server and tests the connection immediately.
-              If it works, it'll be used automatically when you ask DigiMon to do something that needs it. No extra clicks.
+              Click <strong>Connect</strong> below. DigiMon installs what it needs, tests the connection,
+              and then uses this tool automatically whenever you ask for something that needs it.
+              You don't have to remember to turn it on again.
             </div>
 
-            <div className="detail-section-title">Setup Guide</div>
-            <div style={{ marginBottom: 18 }}>
-              {selected.setupSteps.map((step, i) => (
-                <div key={i} className="step-item">
-                  <div className="step-num">{i + 1}</div>
-                  <div className="step-txt">{step}</div>
+            {selected.setupSteps.length > 0 && (
+              <>
+                <div className="detail-section-title">
+                  {selected.envVars.length > 0 ? 'Setup Steps' : 'Quick Notes'}
                 </div>
-              ))}
-            </div>
+                <div style={{ marginBottom: 18 }}>
+                  {selected.setupSteps.map((step, i) => (
+                    <div key={i} className="step-item">
+                      <div className="step-num">{i + 1}</div>
+                      <div className="step-txt">{step}</div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
 
             {selected.envVars.length > 0 && (
               <div style={{ marginBottom: 18 }}>
-                <div className="detail-section-title">Configuration</div>
+                <div className="detail-section-title">Your Credentials</div>
                 {selected.envVars.map(ev => (
                   <div key={ev.key}>
                     <div className="env-label">{ev.label}</div>
@@ -212,7 +227,7 @@ export function McpMarketplace() {
                 disabled={loading === selected.id}
                 onClick={() => handleDisable(selected.id)}
               >
-                {loading === selected.id ? 'Disabling…' : '✕ Disable'}
+                {loading === selected.id ? 'Disconnecting…' : '✕ Disconnect'}
               </button>
             ) : (
               <button
@@ -220,7 +235,7 @@ export function McpMarketplace() {
                 disabled={loading === selected.id}
                 onClick={handleEnable}
               >
-                {loading === selected.id ? 'Connecting…' : '✓ Enable & Test Connection'}
+                {loading === selected.id ? 'Connecting…' : '🔗 Connect'}
               </button>
             )}
           </div>

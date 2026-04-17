@@ -187,10 +187,10 @@ function IntegrationsTab() {
       </div>
 
       <div className="settings-section">
-        <div className="settings-section-title">MCP Integrations</div>
-        <p style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 14, lineHeight: 1.6 }}>
-          Extend what DigiMon can do. Click <strong>Enable</strong> to install and test-connect;
-          the integration activates automatically when you ask for something that needs it.
+        <div className="settings-section-title">Integrations</div>
+        <p style={{ fontSize: 12.5, color: 'var(--text2)', marginBottom: 14, lineHeight: 1.6 }}>
+          Connect DigiMon to the tools you already use — Google, Notion, your local files.
+          Once connected, DigiMon uses them automatically whenever you ask for something they can help with.
         </p>
         <div style={{ height: 520 }}>
           <McpMarketplace />

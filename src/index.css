@@ -1713,3 +1713,37 @@ html, body, #root {
   color: var(--text3);
   line-height: 1.4;
 }
+
+/* ── MCP Marketplace — example & tagline blocks ──────── */
+.mkt-tagline {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.45;
+  margin-bottom: 10px;
+}
+
+.mkt-example {
+  margin: 14px 0 16px;
+  padding: 10px 12px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(241, 106, 80, 0.18);
+  border-left: 2px solid var(--accent);
+  border-radius: var(--r-sm);
+}
+
+.mkt-example-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.mkt-example-text {
+  font-size: 12.5px;
+  color: var(--text);
+  line-height: 1.55;
+  font-style: italic;
+}
