@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import mermaid from 'mermaid'
+import { UsageMeter } from './UsageMeter'
 
 // ── Mermaid ───────────────────────────────────────────
 let mermaidTheme = ''
@@ -147,8 +148,8 @@ export function ChatView({ chatId, chatTitle, activeProvider, dark, onSwitchProv
     window.electronAPI.onChunk(chunk => setStreamBuffer(p => p + chunk))
 
     window.electronAPI.onStep(step => {
-      // 'done' is handled via onDone. Everything else (incl. provider_switched) shows inline.
-      if (step.type === 'done') return
+      // 'done' is handled via onDone. 'usage' is consumed by UsageMeter via onUsageTick.
+      if (step.type === 'done' || step.type === 'usage') return
       setSteps(p => [...p, step])
     })
 
@@ -235,6 +236,7 @@ export function ChatView({ chatId, chatTitle, activeProvider, dark, onSwitchProv
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="chat-header">
         <span className="chat-header-title">{chatTitle === '…' ? 'New conversation' : chatTitle}</span>
+        <UsageMeter activeChatId={chatId} />
         <button
           className={`provider-pill clickable ${activeProvider}`}
           onClick={handleProviderClick}

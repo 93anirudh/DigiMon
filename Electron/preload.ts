@@ -44,6 +44,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.removeAllListeners('chat:titled')
     ipcRenderer.removeAllListeners('llm:provider')
     ipcRenderer.removeAllListeners('llm:quota-hit')
+    ipcRenderer.removeAllListeners('usage:tick')
   },
 
   // ── Tool Approval ─────────────────────────────────────
@@ -70,4 +71,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('mcp:enableWithEnv', serverId, envValues, serverConfig),
   storeGetMcpEnv: (serverId: string, key: string) =>
     ipcRenderer.invoke('store:get', `mcp_env_${serverId}_${key}`),
+
+  // ── Usage tracking ────────────────────────────────────
+  getUsageSummary: (chatId: number | null) =>
+    ipcRenderer.invoke('usage:summary', chatId),
+  onUsageTick: (cb: () => void) =>
+    ipcRenderer.on('usage:tick', () => cb()),
 })

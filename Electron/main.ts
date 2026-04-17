@@ -13,6 +13,7 @@ import {
   readMcpConfig, writeMcpConfig, getMcpStatus,
   loadMcpServer, disconnectAll, testMcpServer
 } from './mcpManager'
+import { getUsageSummary } from './usageService'
 
 const MCP_CONFIG_PATH = app.isPackaged
   ? path.join(process.resourcesPath, 'mcp_config.json')
@@ -219,8 +220,13 @@ app.whenReady().then(async () => {
           if (step.type === 'provider_switched') {
             event.sender.send('llm:provider', step.to)
           }
+          if (step.type === 'usage') {
+            // push live usage updates so the header meter refreshes after every call
+            event.sender.send('usage:tick')
+          }
         },
-        mcpTools
+        mcpTools,
+        chatId
       )
 
       event.sender.send('chat:done')
@@ -351,6 +357,11 @@ app.whenReady().then(async () => {
     // Actually test the connection so the user knows it works
     const result = await testMcpServer(MCP_CONFIG_PATH, serverId)
     return result
+  })
+
+  // ── Usage tracking ──────────────────────────────────
+  ipcMain.handle('usage:summary', (_e, activeChatId: number | null) => {
+    return { summary: getUsageSummary(activeChatId) }
   })
 
   createWindow()

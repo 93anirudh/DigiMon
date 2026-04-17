@@ -40,6 +40,16 @@ declare global {
       enableMcpWithEnv: (serverId: string, envValues: Record<string, string>, serverConfig: any) =>
         Promise<{ ok: boolean; toolCount?: number; error?: string }>
       storeGetMcpEnv: (serverId: string, key: string) => Promise<string | null>
+
+      getUsageSummary: (chatId: number | null) => Promise<{
+        summary: {
+          today: { total_tokens: number; input_tokens: number; output_tokens: number; request_count: number; by_provider: { gemini: number; grok: number } }
+          last_hour: { total_tokens: number; request_count: number }
+          chat: { total_tokens: number; message_count: number } | null
+          context_tokens_in_chat: number
+        }
+      }>
+      onUsageTick: (cb: () => void) => void
     }
   }
 }

@@ -10,6 +10,7 @@ import {
   DANGEROUS_TOOLS, isDestructiveShell
 } from './tools'
 import { requestApproval } from './approvalGate'
+import { extractTokenUsage, recordUsage } from './usageService'
 import type { BrowserWindow } from 'electron'
 
 // ── Active provider state ─────────────────────────────
@@ -170,13 +171,18 @@ Assistant: ${assistantMsg.slice(0, 150)}`
 
 // ── Step event type ────────────────────────────────────
 export interface StepEvent {
-  type: 'thinking' | 'tool_call' | 'tool_result' | 'done' | 'provider_switched'
+  type: 'thinking' | 'tool_call' | 'tool_result' | 'done' | 'provider_switched' | 'usage'
   toolName?: string
   toolArgs?: any
   result?: string
   iteration?: number
   from?: LlmProvider
   to?: LlmProvider
+  // usage event payload
+  inputTokens?: number
+  outputTokens?: number
+  totalTokens?: number
+  durationMs?: number
 }
 
 // ── Invoke with timeout — never hang forever ──────────
@@ -197,9 +203,10 @@ export async function runAgentLoop(
   win: BrowserWindow,
   onChunk: (text: string) => void,
   onStep: (step: StepEvent) => void,
-  mcpTools: any[] = []
+  mcpTools: any[] = [],
+  chatId: number | null = null
 ): Promise<string> {
-  console.log(`[agent] Starting loop | provider=${activeProvider} | messages=${messages.length} | mcpTools=${mcpTools.length}`)
+  console.log(`[agent] Starting loop | provider=${activeProvider} | messages=${messages.length} | mcpTools=${mcpTools.length} | chatId=${chatId}`)
 
   const model = buildModel(geminiKey, grokKey, mcpTools)
   const currentMessages = [new SystemMessage(SYSTEM_PROMPT), ...messages]
@@ -213,8 +220,31 @@ export async function runAgentLoop(
     onStep({ type: 'thinking', iteration: i + 1 })
     console.log(`[agent] Iteration ${i + 1}: invoking model…`)
 
+    const invokeStart = Date.now()
     const response = await invokeWithTimeout(model, currentMessages)
+    const invokeMs = Date.now() - invokeStart
     currentMessages.push(response)
+
+    // Record usage BEFORE any tool call — one usage_event per model invoke
+    const usage = extractTokenUsage(response)
+    console.log(`[agent] Iter ${i + 1} done in ${invokeMs}ms | tokens in=${usage.inputTokens} out=${usage.outputTokens} total=${usage.totalTokens}`)
+    recordUsage({
+      chatId,
+      messageId: null, // linked later when assistant message row is saved
+      provider: activeProvider,
+      model: activeProvider === 'gemini' ? 'gemini-2.5-flash' : 'grok-3-fast',
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      totalTokens: usage.totalTokens,
+      durationMs: invokeMs,
+    })
+    onStep({
+      type: 'usage',
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      totalTokens: usage.totalTokens,
+      durationMs: invokeMs,
+    })
 
     const toolCalls = response.tool_calls ?? []
     console.log(`[agent] Response received | tool_calls=${toolCalls.length}`)
@@ -271,10 +301,11 @@ export async function runAgentLoopWithFallback(
   win: BrowserWindow,
   onChunk: (text: string) => void,
   onStep: (step: StepEvent) => void,
-  mcpTools: any[] = []
+  mcpTools: any[] = [],
+  chatId: number | null = null
 ): Promise<string> {
   try {
-    return await runAgentLoop(geminiKey, grokKey, messages, win, onChunk, onStep, mcpTools)
+    return await runAgentLoop(geminiKey, grokKey, messages, win, onChunk, onStep, mcpTools, chatId)
   } catch (err: any) {
     const from = getActiveProvider()
     const hasOther = from === 'gemini' ? !!grokKey : !!geminiKey
@@ -286,9 +317,8 @@ export async function runAgentLoopWithFallback(
       setActiveProvider(to)
       onStep({ type: 'provider_switched', from, to })
       try {
-        return await runAgentLoop(geminiKey, grokKey, messages, win, onChunk, onStep, mcpTools)
+        return await runAgentLoop(geminiKey, grokKey, messages, win, onChunk, onStep, mcpTools, chatId)
       } catch (retryErr: any) {
-        // Both failed — restore original, bubble up
         setActiveProvider(from)
         throw retryErr
       }

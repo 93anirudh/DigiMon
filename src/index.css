@@ -1367,3 +1367,213 @@ html, body, #root {
 .provider-pill.clickable:hover .provider-swap {
   opacity: 1;
 }
+
+/* ── Usage Meter ─────────────────────────────────────── */
+.usage-meter-wrap {
+  position: relative;
+}
+
+.usage-meter-pill {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--r-full);
+  background: var(--surface2);
+  border: 1px solid var(--border-md);
+  color: var(--text2);
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--dur-fast);
+}
+.usage-meter-pill:hover {
+  background: var(--surface3);
+  border-color: var(--border-strong);
+}
+
+.usage-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  flex-shrink: 0;
+  box-shadow: 0 0 4px var(--success-soft);
+}
+
+.usage-text {
+  display: flex; align-items: center; gap: 4px;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+
+.usage-text-sub {
+  color: var(--text3);
+  font-family: var(--font);
+  font-weight: 500;
+  font-size: 10.5px;
+  margin-left: 2px;
+}
+
+.usage-flash {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: var(--r-full);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  animation: flashIn 0.3s var(--spring);
+}
+@keyframes flashIn {
+  from { transform: scale(0.7); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+.usage-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 360px;
+  background: var(--surface);
+  border: 1px solid var(--border-md);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg);
+  padding: 14px;
+  z-index: 100;
+  animation: popIn 0.15s var(--ease);
+}
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.usage-popover-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.usage-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.usage-cell {
+  padding: 10px;
+  border-radius: var(--r-sm);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+}
+
+.usage-cell-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 4px;
+}
+
+.usage-cell-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  font-family: var(--font-mono);
+  letter-spacing: -0.3px;
+}
+
+.usage-cell-sub {
+  font-size: 10.5px;
+  color: var(--text3);
+  margin-top: 2px;
+}
+
+.usage-split {
+  margin-bottom: 12px;
+}
+
+.usage-split-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 6px;
+}
+
+.usage-split-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.split-bar-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11.5px;
+  margin-bottom: 3px;
+}
+
+.split-bar-label {
+  color: var(--text2);
+  font-weight: 500;
+}
+
+.split-bar-value {
+  color: var(--text3);
+  font-family: var(--font-mono);
+}
+
+.split-bar-track {
+  height: 4px;
+  background: var(--surface3);
+  border-radius: var(--r-full);
+  overflow: hidden;
+}
+
+.split-bar-fill {
+  height: 100%;
+  transition: width 0.3s var(--ease);
+}
+
+.usage-breakdown {
+  padding: 8px 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  margin-bottom: 10px;
+}
+
+.usage-breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+  font-size: 11.5px;
+  color: var(--text2);
+}
+
+.usage-breakdown-row .mono {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.usage-footer-note {
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 10.5px;
+  color: var(--text3);
+  line-height: 1.5;
+  text-align: center;
+}
