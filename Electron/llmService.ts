@@ -29,10 +29,19 @@ const MODEL_API_ID: Record<GeminiModel, string> = {
 }
 
 // Display labels for the UI
+// Display labels for the UI — friendly names for non-technical users.
+// API IDs stay as Gemini versions; these are just what users see.
 export const MODEL_LABEL: Record<GeminiModel, string> = {
-  'gemini-3-pro':     'Gemini 3 Pro',
-  'gemini-2.5-pro':   'Gemini 2.5 Pro',
-  'gemini-2.5-flash': 'Gemini 2.5 Flash',
+  'gemini-3-pro':     'Gemini Super',
+  'gemini-2.5-pro':   'Gemini Smart',
+  'gemini-2.5-flash': 'Gemini Flash',
+}
+
+// Short descriptions shown under each model in the dropdown
+export const MODEL_DESCRIPTION: Record<GeminiModel, string> = {
+  'gemini-3-pro':     'Best quality · slower · costs more',
+  'gemini-2.5-pro':   'Balanced quality & speed',
+  'gemini-2.5-flash': 'Fastest · cheapest · lower quality',
 }
 
 let activeModel: GeminiModel = 'gemini-3-pro'

@@ -76,9 +76,9 @@ export default function App() {
   const handleSwitchModel = async (to: string) => {
     await window.electronAPI.setModel(to)
     setActiveModel(to)
-    const label = to === 'gemini-3-pro' ? 'Gemini 3 Pro'
-                : to === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro'
-                : 'Gemini 2.5 Flash'
+    const label = to === 'gemini-3-pro' ? 'Gemini Super'
+                : to === 'gemini-2.5-pro' ? 'Gemini Smart'
+                : 'Gemini Flash'
     setToast(`Now using ${label}`)
     setTimeout(() => setToast(null), 2500)
   }

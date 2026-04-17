@@ -14,9 +14,9 @@ interface Summary {
 }
 
 const MODEL_LABELS: Record<string, string> = {
-  'gemini-3-pro':     'Gemini 3 Pro',
-  'gemini-2.5-pro':   'Gemini 2.5 Pro',
-  'gemini-2.5-flash': 'Gemini 2.5 Flash',
+  'gemini-3-pro':     'Gemini Super',
+  'gemini-2.5-pro':   'Gemini Smart',
+  'gemini-2.5-flash': 'Gemini Flash',
 }
 
 const MODEL_COLORS: Record<string, string> = {

@@ -106,9 +106,9 @@ function GeneralTab() {
         <div className="settings-card">
           <div className="settings-card-body">
             <p style={{ fontSize: 12.5, color: 'var(--text2)', lineHeight: 1.65 }}>
-              DigiMon uses Google's Gemini models. The default is <strong>Gemini 3 Pro</strong>
+              DigiMon uses Google's Gemini models. The default is <strong>Gemini Super</strong>
               for best quality. If rate limits or network issues hit, DigiMon silently falls back
-              to <strong>Gemini 2.5 Pro</strong>, then <strong>Gemini 2.5 Flash</strong>.
+              to <strong>Gemini Smart</strong>, then <strong>Gemini Flash</strong>.
               You can also click the model pill in any chat to switch manually.
             </p>
           </div>
