@@ -21,18 +21,22 @@ declare global {
       onChunk: (cb: (chunk: string) => void) => void
       onDone: (cb: () => void) => void
       onError: (cb: (msg: string) => void) => void
-      onStep: (cb: (step: { type: string; toolName?: string; toolArgs?: any; result?: string; iteration?: number; from?: string; to?: string }) => void) => void
+      onStep: (cb: (step: {
+        type: string; toolName?: string; toolArgs?: any; result?: string;
+        iteration?: number; from?: string; to?: string; reason?: string;
+        inputTokens?: number; outputTokens?: number; totalTokens?: number; durationMs?: number;
+      }) => void) => void
       onChatTitled: (cb: (data: { chatId: number; title: string }) => void) => void
       removeListeners: () => void
 
       approveToolCall: (approved: boolean) => Promise<boolean>
       onApprovalRequired: (cb: (data: { toolName: string; toolArgs: any }) => void) => void
 
-      setProvider: (provider: string) => Promise<boolean>
-      getProvider: () => Promise<string>
-      testApiKey: (provider: string, apiKey: string) => Promise<{ ok: boolean; error?: string }>
-      onProviderChange: (cb: (p: string) => void) => void
-      onQuotaHit: (cb: (data: { from: string; hasGrok: boolean; hasGemini: boolean; message?: string }) => void) => void
+      setModel: (model: string) => Promise<boolean>
+      getModel: () => Promise<string>
+      getModelChain: () => Promise<string[]>
+      testApiKey: (apiKey: string) => Promise<{ ok: boolean; error?: string }>
+      onModelChange: (cb: (m: string) => void) => void
 
       getMcpConfig: () => Promise<any>
       getMcpStatus: () => Promise<any[]>
@@ -43,13 +47,29 @@ declare global {
 
       getUsageSummary: (chatId: number | null) => Promise<{
         summary: {
-          today: { total_tokens: number; input_tokens: number; output_tokens: number; request_count: number; by_provider: { gemini: number; grok: number } }
+          today: { total_tokens: number; input_tokens: number; output_tokens: number; request_count: number; by_model: Record<string, number> }
           last_hour: { total_tokens: number; request_count: number }
           chat: { total_tokens: number; message_count: number } | null
           context_tokens_in_chat: number
         }
       }>
       onUsageTick: (cb: () => void) => void
+
+      whatsappStart: () => Promise<{ ok: boolean; error?: string }>
+      whatsappStop:  () => Promise<boolean>
+      whatsappStatus: () => Promise<{
+        status: 'disconnected' | 'awaiting_qr' | 'authenticated' | 'error'
+        qrDataUrl: string | null
+        error: string | null
+        serverRunning: boolean
+      }>
+      whatsappStatusSync: () => Promise<{
+        status: 'disconnected' | 'awaiting_qr' | 'authenticated' | 'error'
+        qrDataUrl: string | null
+        error: string | null
+        serverRunning: boolean
+      }>
+      whatsappLogout: () => Promise<boolean>
     }
   }
 }

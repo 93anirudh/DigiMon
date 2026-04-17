@@ -15,7 +15,7 @@ export function SetupWizard({ onComplete }: Props) {
     setTesting(true)
     setResult(null)
 
-    const test = await window.electronAPI.testApiKey('gemini', key.trim())
+    const test = await window.electronAPI.testApiKey(key.trim())
     if (test.ok) {
       await window.electronAPI.storeSet('gemini_api_key', key.trim())
       setTesting(false)

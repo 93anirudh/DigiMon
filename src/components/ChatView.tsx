@@ -60,22 +60,40 @@ function timeAgo(dateStr: string): string {
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
 }
 
+const MODEL_LABEL: Record<string, string> = {
+  'gemini-3-pro':     'Gemini 3 Pro',
+  'gemini-2.5-pro':   'Gemini 2.5 Pro',
+  'gemini-2.5-flash': 'Gemini 2.5 Flash',
+}
+
+// Cycle through models in order: 3-pro → 2.5-pro → 2.5-flash → back to 3-pro
+function nextModel(current: string): string {
+  const chain = ['gemini-3-pro', 'gemini-2.5-pro', 'gemini-2.5-flash']
+  const idx = chain.indexOf(current)
+  return chain[(idx + 1) % chain.length]
+}
+
 interface Step {
   type: string; toolName?: string; toolArgs?: any
   result?: string; iteration?: number
-  from?: string; to?: string
+  from?: string; to?: string; reason?: string
 }
 
 function StepRow({ step }: { step: Step }) {
-  if (step.type === 'provider_switched') return (
-    <div className="step-row">
-      <span className="step-icon" style={{ color: 'var(--accent)' }}>⇄</span>
-      <span className="step-text">
-        Switched to <strong>{step.to === 'gemini' ? 'Gemini' : 'Grok'}</strong>
-        <span style={{ color: 'var(--text3)' }}> · {step.from} hit rate limit</span>
-      </span>
-    </div>
-  )
+  if (step.type === 'model_switched') {
+    const toLabel = step.to && MODEL_LABEL[step.to] ? MODEL_LABEL[step.to] : step.to
+    return (
+      <div className="step-row">
+        <span className="step-icon" style={{ color: 'var(--accent)' }}>⇄</span>
+        <span className="step-text">
+          Switched to <strong>{toLabel}</strong>
+          {step.reason && (
+            <span style={{ color: 'var(--text3)' }}> · {step.from} hit {step.reason}</span>
+          )}
+        </span>
+      </div>
+    )
+  }
   if (step.type === 'thinking') return (
     <div className="step-row">
       <span className="step-icon" style={{ animation: 'breathe 1.5s ease infinite' }}>◌</span>
@@ -121,12 +139,12 @@ interface Message { id: number; role: string; content: string; created_at?: stri
 interface Props {
   chatId: number
   chatTitle: string
-  activeProvider: string
+  activeModel: string
   dark: boolean
-  onSwitchProvider: (to: string) => void
+  onSwitchModel: (to: string) => void
 }
 
-export function ChatView({ chatId, chatTitle, activeProvider, dark, onSwitchProvider }: Props) {
+export function ChatView({ chatId, chatTitle, activeModel, dark, onSwitchModel }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
@@ -148,7 +166,6 @@ export function ChatView({ chatId, chatTitle, activeProvider, dark, onSwitchProv
     window.electronAPI.onChunk(chunk => setStreamBuffer(p => p + chunk))
 
     window.electronAPI.onStep(step => {
-      // 'done' is handled via onDone. 'usage' is consumed by UsageMeter via onUsageTick.
       if (step.type === 'done' || step.type === 'usage') return
       setSteps(p => [...p, step])
     })
@@ -210,9 +227,8 @@ export function ChatView({ chatId, chatTitle, activeProvider, dark, onSwitchProv
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
   }
 
-  const handleProviderClick = () => {
-    const next = activeProvider === 'gemini' ? 'grok' : 'gemini'
-    onSwitchProvider(next)
+  const handleModelClick = () => {
+    onSwitchModel(nextModel(activeModel))
   }
 
   const mdComponents: any = {
@@ -231,6 +247,7 @@ export function ChatView({ chatId, chatTitle, activeProvider, dark, onSwitchProv
   )
 
   const isWaiting = streaming && !streamBuffer && steps.length === 0
+  const modelLabel = MODEL_LABEL[activeModel] ?? activeModel
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -238,12 +255,12 @@ export function ChatView({ chatId, chatTitle, activeProvider, dark, onSwitchProv
         <span className="chat-header-title">{chatTitle === '…' ? 'New conversation' : chatTitle}</span>
         <UsageMeter activeChatId={chatId} />
         <button
-          className={`provider-pill clickable ${activeProvider}`}
-          onClick={handleProviderClick}
-          title={`Click to switch to ${activeProvider === 'gemini' ? 'Grok' : 'Gemini'}`}
+          className="model-pill clickable"
+          onClick={handleModelClick}
+          title={`Click to cycle model · Current: ${modelLabel}`}
         >
-          {activeProvider === 'gemini' ? '✦ Gemini' : '⚡ Grok'}
-          <span className="provider-swap">⇄</span>
+          ✦ {modelLabel}
+          <span className="model-swap">⇄</span>
         </button>
         {streaming && <span className="status-pill">Thinking…</span>}
       </div>
@@ -291,10 +308,10 @@ export function ChatView({ chatId, chatTitle, activeProvider, dark, onSwitchProv
                 <button className="error-retry" onClick={handleRetry}>↺ Retry</button>
                 <button
                   className="error-retry"
-                  onClick={() => onSwitchProvider(activeProvider === 'gemini' ? 'grok' : 'gemini')}
+                  onClick={() => onSwitchModel(nextModel(activeModel))}
                   style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
                 >
-                  Switch to {activeProvider === 'gemini' ? 'Grok' : 'Gemini'}
+                  Try {MODEL_LABEL[nextModel(activeModel)]}
                 </button>
               </div>
             </div>

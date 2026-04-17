@@ -1,12 +1,8 @@
 import { useEffect, useState } from 'react'
 import { McpMarketplace } from './McpMarketplace'
+import { WhatsAppSetup } from './WhatsAppSetup'
 
-function ApiKeyInput({
-  label, hint, storeKey, placeholder, provider
-}: {
-  label: string; hint: string; storeKey: string; placeholder: string
-  provider: 'gemini' | 'grok'
-}) {
+function ApiKeyInput() {
   const [val, setVal] = useState('')
   const [saved, setSaved] = useState(false)
   const [visible, setVisible] = useState(false)
@@ -14,25 +10,27 @@ function ApiKeyInput({
   const [testResult, setTestResult] = useState<{ ok: boolean; error?: string } | null>(null)
 
   useEffect(() => {
-    window.electronAPI.storeGet(storeKey).then(k => { if (k) setVal(k) })
-  }, [storeKey])
+    window.electronAPI.storeGet('gemini_api_key').then(k => { if (k) setVal(k) })
+  }, [])
 
   const save = async () => {
     if (!val.trim()) return
     setTesting(true); setTestResult(null)
-    const test = await window.electronAPI.testApiKey(provider, val.trim())
+    const test = await window.electronAPI.testApiKey(val.trim())
     setTesting(false)
     setTestResult(test)
     if (test.ok) {
-      await window.electronAPI.storeSet(storeKey, val.trim())
+      await window.electronAPI.storeSet('gemini_api_key', val.trim())
       setSaved(true); setTimeout(() => setSaved(false), 2000)
     }
   }
 
   return (
     <div>
-      <div className="field-label">{label}</div>
-      <div className="field-hint">{hint}</div>
+      <div className="field-label">Gemini API Key</div>
+      <div className="field-hint">
+        Get your key at aistudio.google.com/apikey · Pay-as-you-go pricing applies
+      </div>
       <div className="field-row">
         <div style={{ flex: 1, position: 'relative' }}>
           <input
@@ -40,7 +38,7 @@ function ApiKeyInput({
             type={visible ? 'text' : 'password'}
             value={val}
             onChange={e => { setVal(e.target.value); setTestResult(null) }}
-            placeholder={placeholder}
+            placeholder="AIza…"
             onKeyDown={e => e.key === 'Enter' && save()}
             style={{ width: '100%', paddingRight: 36 }}
           />
@@ -104,6 +102,20 @@ function GeneralTab() {
   return (
     <>
       <div className="settings-section">
+        <div className="settings-section-title">About the AI</div>
+        <div className="settings-card">
+          <div className="settings-card-body">
+            <p style={{ fontSize: 12.5, color: 'var(--text2)', lineHeight: 1.65 }}>
+              DigiMon uses Google's Gemini models. The default is <strong>Gemini 3 Pro</strong>
+              for best quality. If rate limits or network issues hit, DigiMon silently falls back
+              to <strong>Gemini 2.5 Pro</strong>, then <strong>Gemini 2.5 Flash</strong>.
+              You can also click the model pill in any chat to switch manually.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="settings-section">
         <div className="settings-section-title">Keyboard Shortcuts</div>
         <div className="settings-card">
           <div className="settings-card-body">
@@ -144,7 +156,7 @@ function GeneralTab() {
         >
           <span>
             <span style={{ color: 'var(--accent)', marginRight: 6 }}>⚙</span>
-            Advanced — API Keys
+            Advanced — API Key
           </span>
           <span style={{ color: 'var(--text3)' }}>{advancedOpen ? '▲' : '▼'}</span>
         </button>
@@ -153,29 +165,11 @@ function GeneralTab() {
           <div style={{ marginTop: 12 }}>
             <div className="settings-card">
               <div className="settings-card-body">
-                <p style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 16, lineHeight: 1.6 }}>
-                  DigiMon uses Gemini by default and falls back to Grok automatically when the free tier runs out.
-                  Most users never need to touch these.
-                </p>
-                <ApiKeyInput
-                  label="Gemini API Key"
-                  hint="Primary AI. Get free at aistudio.google.com/apikey"
-                  storeKey="gemini_api_key"
-                  placeholder="AIza…"
-                  provider="gemini"
-                />
-                <hr className="settings-divider" />
-                <ApiKeyInput
-                  label="Grok API Key (optional fallback)"
-                  hint="Used automatically if Gemini hits its rate limit. Get at console.x.ai"
-                  storeKey="grok_api_key"
-                  placeholder="xai-…"
-                  provider="grok"
-                />
+                <ApiKeyInput />
               </div>
             </div>
             <p style={{ fontSize: 11.5, color: 'var(--text3)', marginTop: 10, lineHeight: 1.6 }}>
-              Keys are stored locally in your AppData folder, never transmitted anywhere except the AI providers themselves.
+              Your key is stored locally in your AppData folder, never transmitted anywhere except to Google directly.
             </p>
           </div>
         )}
@@ -186,15 +180,22 @@ function GeneralTab() {
 
 function IntegrationsTab() {
   return (
-    <div className="settings-section">
-      <div className="settings-section-title">MCP Integrations</div>
-      <p style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 14, lineHeight: 1.6 }}>
-        Extend what DigiMon can do. Click <strong>Enable</strong> to install and test-connect;
-        the integration activates automatically when you ask for something that needs it.
-      </p>
-      <div style={{ height: 520 }}>
-        <McpMarketplace />
+    <>
+      <div className="settings-section">
+        <div className="settings-section-title">WhatsApp</div>
+        <WhatsAppSetup />
       </div>
-    </div>
+
+      <div className="settings-section">
+        <div className="settings-section-title">MCP Integrations</div>
+        <p style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 14, lineHeight: 1.6 }}>
+          Extend what DigiMon can do. Click <strong>Enable</strong> to install and test-connect;
+          the integration activates automatically when you ask for something that needs it.
+        </p>
+        <div style={{ height: 520 }}>
+          <McpMarketplace />
+        </div>
+      </div>
+    </>
   )
 }

@@ -16,10 +16,7 @@ export default function App() {
   const [activeChatId, setActiveChatId] = useState<number | null>(null)
   const [view, setView] = useState<'chat' | 'settings'>('chat')
   const [approval, setApproval] = useState<ApprovalRequest | null>(null)
-  const [activeProvider, setActiveProvider] = useState<string>('gemini')
-  const [quotaHit, setQuotaHit] = useState<{
-    from: string; hasGrok: boolean; hasGemini: boolean; message?: string
-  } | null>(null)
+  const [activeModel, setActiveModel] = useState<string>('gemini-3-pro')
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null)
   const [toast, setToast] = useState<string | null>(null)
 
@@ -36,10 +33,9 @@ export default function App() {
   useEffect(() => {
     checkSetup()
     loadChats()
-    window.electronAPI.getProvider().then(p => setActiveProvider(p))
+    window.electronAPI.getModel().then(m => setActiveModel(m))
     window.electronAPI.onApprovalRequired(data => setApproval(data))
-    window.electronAPI.onProviderChange(p => setActiveProvider(p))
-    window.electronAPI.onQuotaHit(data => setQuotaHit(data))
+    window.electronAPI.onModelChange(m => setActiveModel(m))
     window.electronAPI.onChatTitled(({ chatId, title }) => {
       setChats(prev => prev.map(c => c.id === chatId ? { ...c, title } : c))
     })
@@ -77,11 +73,13 @@ export default function App() {
     setApproval(null)
   }
 
-  const handleSwitchProvider = async (to: string) => {
-    await window.electronAPI.setProvider(to)
-    setActiveProvider(to)
-    setQuotaHit(null)
-    setToast(`Now using ${to === 'gemini' ? 'Gemini' : 'Grok'}`)
+  const handleSwitchModel = async (to: string) => {
+    await window.electronAPI.setModel(to)
+    setActiveModel(to)
+    const label = to === 'gemini-3-pro' ? 'Gemini 3 Pro'
+                : to === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro'
+                : 'Gemini 2.5 Flash'
+    setToast(`Now using ${label}`)
     setTimeout(() => setToast(null), 2500)
   }
 
@@ -91,7 +89,6 @@ export default function App() {
 
   const activeChat = chats.find(c => c.id === activeChatId)
 
-  // Show wizard until we know the answer AND it's true
   if (needsSetup === true) {
     return (
       <div className="app-shell">
@@ -111,40 +108,6 @@ export default function App() {
         />
       )}
 
-      {quotaHit && (
-        <div className="overlay">
-          <div className="modal">
-            <div className="modal-hdr">
-              <div className="modal-icon-wrap info">⚡</div>
-              <div>
-                <div className="modal-title">Rate limit reached</div>
-                <div className="modal-sub">
-                  {quotaHit.message ?? `${quotaHit.from === 'gemini' ? 'Gemini' : 'Grok'} hit its rate limit`}
-                </div>
-              </div>
-            </div>
-            <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 20, lineHeight: 1.65 }}>
-              {quotaHit.from === 'gemini' && quotaHit.hasGrok
-                ? 'Switch to Grok (xAI) to keep going.'
-                : quotaHit.from === 'grok' && quotaHit.hasGemini
-                ? 'Switch back to Gemini to keep going.'
-                : 'No backup provider set up. Add a second API key in Settings → Advanced, or wait a minute.'}
-            </p>
-            <div className="modal-btns">
-              {((quotaHit.from === 'gemini' && quotaHit.hasGrok) ||
-                (quotaHit.from === 'grok' && quotaHit.hasGemini)) && (
-                <button className="btn-primary"
-                  onClick={() => handleSwitchProvider(quotaHit.from === 'gemini' ? 'grok' : 'gemini')}>
-                  Switch to {quotaHit.from === 'gemini' ? 'Grok' : 'Gemini'}
-                </button>
-              )}
-              <button className="btn-ghost" onClick={() => setQuotaHit(null)}>Dismiss</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Subtle toast for auto-switch and manual switch */}
       {toast && <div className="toast">{toast}</div>}
 
       <Sidebar
@@ -166,9 +129,9 @@ export default function App() {
           <ChatView
             chatId={activeChatId}
             chatTitle={activeChat.title}
-            activeProvider={activeProvider}
+            activeModel={activeModel}
             dark={dark}
-            onSwitchProvider={handleSwitchProvider}
+            onSwitchModel={handleSwitchModel}
           />
         ) : (
           <WelcomeScreen onSelectSuggestion={async (text) => {

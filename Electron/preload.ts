@@ -42,8 +42,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.removeAllListeners('chat:error')
     ipcRenderer.removeAllListeners('chat:step')
     ipcRenderer.removeAllListeners('chat:titled')
-    ipcRenderer.removeAllListeners('llm:provider')
-    ipcRenderer.removeAllListeners('llm:quota-hit')
+    ipcRenderer.removeAllListeners('llm:model')
     ipcRenderer.removeAllListeners('usage:tick')
   },
 
@@ -52,15 +51,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onApprovalRequired: (cb: (data: { toolName: string; toolArgs: any }) => void) =>
     ipcRenderer.on('tool:approval-required', (_e, data) => cb(data)),
 
-  // ── LLM Provider ──────────────────────────────────────
-  setProvider: (provider: string) => ipcRenderer.invoke('llm:setProvider', provider),
-  getProvider: () => ipcRenderer.invoke('llm:getProvider'),
-  testApiKey: (provider: string, apiKey: string) =>
-    ipcRenderer.invoke('llm:testKey', provider, apiKey),
-  onProviderChange: (cb: (p: string) => void) =>
-    ipcRenderer.on('llm:provider', (_e, p) => cb(p)),
-  onQuotaHit: (cb: (data: { from: string; hasGrok: boolean; hasGemini: boolean; message?: string }) => void) =>
-    ipcRenderer.on('llm:quota-hit', (_e, data) => cb(data)),
+  // ── LLM Model ─────────────────────────────────────────
+  setModel: (model: string) => ipcRenderer.invoke('llm:setModel', model),
+  getModel: () => ipcRenderer.invoke('llm:getModel'),
+  getModelChain: () => ipcRenderer.invoke('llm:getChain'),
+  testApiKey: (apiKey: string) => ipcRenderer.invoke('llm:testKey', apiKey),
+  onModelChange: (cb: (m: string) => void) =>
+    ipcRenderer.on('llm:model', (_e, m) => cb(m)),
 
   // ── MCP Hub ───────────────────────────────────────────
   getMcpConfig: () => ipcRenderer.invoke('mcp:getConfig'),
@@ -72,9 +69,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   storeGetMcpEnv: (serverId: string, key: string) =>
     ipcRenderer.invoke('store:get', `mcp_env_${serverId}_${key}`),
 
-  // ── Usage tracking ────────────────────────────────────
+  // ── Usage ────────────────────────────────────────────
   getUsageSummary: (chatId: number | null) =>
     ipcRenderer.invoke('usage:summary', chatId),
   onUsageTick: (cb: () => void) =>
     ipcRenderer.on('usage:tick', () => cb()),
+
+  // ── WhatsApp ─────────────────────────────────────────
+  whatsappStart:    () => ipcRenderer.invoke('whatsapp:start'),
+  whatsappStop:     () => ipcRenderer.invoke('whatsapp:stop'),
+  whatsappStatus:   () => ipcRenderer.invoke('whatsapp:status'),
+  whatsappStatusSync: () => ipcRenderer.invoke('whatsapp:getStatusSync'),
+  whatsappLogout:   () => ipcRenderer.invoke('whatsapp:logout'),
 })

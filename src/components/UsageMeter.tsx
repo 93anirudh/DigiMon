@@ -6,11 +6,23 @@ interface Summary {
     input_tokens: number
     output_tokens: number
     request_count: number
-    by_provider: { gemini: number; grok: number }
+    by_model: Record<string, number>
   }
   last_hour: { total_tokens: number; request_count: number }
   chat: { total_tokens: number; message_count: number } | null
   context_tokens_in_chat: number
+}
+
+const MODEL_LABELS: Record<string, string> = {
+  'gemini-3-pro':     'Gemini 3 Pro',
+  'gemini-2.5-pro':   'Gemini 2.5 Pro',
+  'gemini-2.5-flash': 'Gemini 2.5 Flash',
+}
+
+const MODEL_COLORS: Record<string, string> = {
+  'gemini-3-pro':     '#8E79F7', // purple
+  'gemini-2.5-pro':   '#4285F4', // google blue
+  'gemini-2.5-flash': '#34A853', // green
 }
 
 function formatTokens(n: number): string {
@@ -27,19 +39,17 @@ export function UsageMeter({ activeChatId }: { activeChatId: number | null }) {
 
   const refresh = useCallback(async () => {
     const r = await window.electronAPI.getUsageSummary(activeChatId)
-    setSummary(r.summary)
+    setSummary(r.summary as Summary)
   }, [activeChatId])
 
   useEffect(() => {
     refresh()
 
-    // Pull the tokens of the most recent call — shown as a pulse next to the total
     const pullLastCall = async () => {
       const r = await window.electronAPI.getUsageSummary(activeChatId)
-      setSummary(r.summary)
-      // "last call" = tokens used by the very last model invoke in this chat.
-      // For display we diff against the previous snapshot.
-      setLastCallTokens(r.summary.context_tokens_in_chat > 0 ? r.summary.context_tokens_in_chat : null)
+      const s = r.summary as Summary
+      setSummary(s)
+      setLastCallTokens(s.context_tokens_in_chat > 0 ? s.context_tokens_in_chat : null)
       setTimeout(() => setLastCallTokens(null), 4000)
     }
 
@@ -49,7 +59,6 @@ export function UsageMeter({ activeChatId }: { activeChatId: number | null }) {
     return () => clearInterval(iv)
   }, [refresh, activeChatId])
 
-  // Close popover on outside click
   useEffect(() => {
     if (!open) return
     const handler = (e: MouseEvent) => {
@@ -61,6 +70,11 @@ export function UsageMeter({ activeChatId }: { activeChatId: number | null }) {
   }, [open])
 
   if (!summary) return null
+
+  // Sort models by token usage descending, then put known models first
+  const modelEntries = Object.entries(summary.today.by_model)
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1])
 
   return (
     <div className="usage-meter-wrap">
@@ -115,23 +129,22 @@ export function UsageMeter({ activeChatId }: { activeChatId: number | null }) {
             </div>
           </div>
 
-          <div className="usage-split">
-            <div className="usage-split-label">Today by provider</div>
-            <div className="usage-split-bars">
-              <SplitBar
-                label="Gemini"
-                value={summary.today.by_provider.gemini}
-                total={summary.today.total_tokens}
-                color="#4285F4"
-              />
-              <SplitBar
-                label="Grok"
-                value={summary.today.by_provider.grok}
-                total={summary.today.total_tokens}
-                color="var(--accent)"
-              />
+          {modelEntries.length > 0 && (
+            <div className="usage-split">
+              <div className="usage-split-label">Today by model</div>
+              <div className="usage-split-bars">
+                {modelEntries.map(([model, value]) => (
+                  <SplitBar
+                    key={model}
+                    label={MODEL_LABELS[model] ?? model}
+                    value={value}
+                    total={summary.today.total_tokens}
+                    color={MODEL_COLORS[model] ?? 'var(--accent)'}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="usage-breakdown">
             <div className="usage-breakdown-row">
@@ -145,7 +158,7 @@ export function UsageMeter({ activeChatId }: { activeChatId: number | null }) {
           </div>
 
           <div className="usage-footer-note">
-            Numbers are raw token counts from the AI provider. No limits tracked — those come later.
+            Raw token counts from Google. Pricing depends on model — Flash is ~40× cheaper per output token than 3 Pro.
           </div>
         </div>
       )}

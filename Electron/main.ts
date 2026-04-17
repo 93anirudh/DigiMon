@@ -4,9 +4,10 @@ import { getDb } from './database'
 import { storeGet, storeSet, storeDelete } from './store'
 import {
   runAgentLoopWithFallback, formatHistory,
-  getActiveProvider, setActiveProvider, generateChatTitle,
+  getActiveModel, setActiveModel, generateChatTitle,
   humanizeError, isQuotaError,
-  type LlmProvider
+  MODEL_CHAIN,
+  type GeminiModel
 } from './llmService'
 import { resolveApproval } from './approvalGate'
 import {
@@ -14,49 +15,41 @@ import {
   loadMcpServer, disconnectAll, testMcpServer
 } from './mcpManager'
 import { getUsageSummary } from './usageService'
+import {
+  startServer as startWhatsAppServer,
+  stopServer as stopWhatsAppServer,
+  pollStatus as pollWhatsAppStatus,
+  getStatus as getWhatsAppStatus,
+  logout as logoutWhatsApp,
+} from './whatsappService'
 
 const MCP_CONFIG_PATH = app.isPackaged
   ? path.join(process.resourcesPath, 'mcp_config.json')
   : path.join(app.getAppPath(), 'mcp_config.json')
 
-// ── Keyword → MCP server ID map for lazy-loading ──────
-// When a user's message contains any of these keywords AND the MCP is enabled
-// in settings, that MCP is spun up for this one message. Add more keywords as
-// you discover patterns users actually type.
+// ── MCP keyword trigger map ───────────────────────────
 const MCP_TRIGGER_MAP: Record<string, string> = {
-  // filesystem MCP
   'file': 'filesystem',
   'folder': 'filesystem',
   'directory': 'filesystem',
-  // google workspace
   'gmail': 'google-workspace',
   'google drive': 'google-workspace',
   'gdrive': 'google-workspace',
   'google doc': 'google-workspace',
   'google sheet': 'google-workspace',
-  // browser automation
   'browser': 'puppeteer',
   'screenshot': 'puppeteer',
   'navigate to': 'puppeteer',
   'website': 'puppeteer',
-  // notion
   'notion': 'notion',
-  // airtable
   'airtable': 'airtable',
-  // whatsapp
-  'whatsapp': 'whatsapp',
-  // pdf
   'pdf': 'pdf-reader',
-  // excel
   'excel': 'excel-csv',
   'xlsx': 'excel-csv',
   'spreadsheet': 'excel-csv',
-  // ocr
   'ocr': 'ocr',
   'scanned': 'ocr',
-  // github
   'github': 'github',
-  // postgres
   'postgresql': 'postgres',
   'postgres': 'postgres',
 }
@@ -95,7 +88,7 @@ function createWindow() {
           "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
           "font-src 'self' https://fonts.gstatic.com; " +
           "img-src 'self' data: https:; " +
-          "connect-src 'self' https://generativelanguage.googleapis.com https://api.x.ai;"
+          "connect-src 'self' https://generativelanguage.googleapis.com;"
         ],
       },
     })
@@ -108,7 +101,6 @@ function createWindow() {
     win.loadFile(path.join(__dirname, '../dist/index.html'))
   }
 
-  // Catch uncaught Electron main process errors
   win.webContents.on('render-process-gone', (_e, details) => {
     console.error('[main] Render process crashed:', details)
   })
@@ -122,11 +114,16 @@ app.whenReady().then(async () => {
   console.log(`[main] userData: ${app.getPath('userData')}`)
   console.log(`[main] MCP auto-init: DISABLED (lazy-load mode)`)
 
-  const hasGemini = !!storeGet('gemini_api_key')
-  const hasGrok   = !!storeGet('grok_api_key')
-  console.log(`[main] Keys on disk: gemini=${hasGemini} grok=${hasGrok}`)
-  if (!hasGemini && !hasGrok) {
-    console.log('[main] ⚠️  No API keys found — first-run setup will appear')
+  // Restore saved model choice if any
+  const savedModel = storeGet('active_model') as GeminiModel | null
+  if (savedModel && MODEL_CHAIN.includes(savedModel)) {
+    setActiveModel(savedModel)
+  }
+
+  const hasKey = !!storeGet('gemini_api_key')
+  console.log(`[main] Gemini key on disk: ${hasKey}`)
+  if (!hasKey) {
+    console.log('[main] ⚠️  No API key found — first-run setup will appear')
   }
 
   // ── Secure Store ──────────────────────────────────────
@@ -138,10 +135,7 @@ app.whenReady().then(async () => {
     storeDelete(key); return true
   })
 
-  // Check if first-run setup is needed
-  ipcMain.handle('app:needsSetup', () => {
-    return !storeGet('gemini_api_key') && !storeGet('grok_api_key')
-  })
+  ipcMain.handle('app:needsSetup', () => !storeGet('gemini_api_key'))
 
   // ── Chats ─────────────────────────────────────────────
   const db = getDb()
@@ -170,7 +164,6 @@ app.whenReady().then(async () => {
     db.prepare('SELECT * FROM messages WHERE chat_id = ? ORDER BY created_at ASC').all(chatId)
   )
 
-  // ── Shared: send a message through the agent ──────────
   async function runChat(
     event: Electron.IpcMainInvokeEvent,
     chatId: number,
@@ -178,11 +171,10 @@ app.whenReady().then(async () => {
     history: { role: string; content: string }[],
     saveUserMessage: boolean
   ) {
-    const geminiKey = storeGet('gemini_api_key')
-    const grokKey   = storeGet('grok_api_key')
+    const apiKey = storeGet('gemini_api_key')
 
-    if (!geminiKey && !grokKey) {
-      event.sender.send('chat:error', 'No API key set. Open Settings and add one to begin.')
+    if (!apiKey) {
+      event.sender.send('chat:error', 'No Gemini API key set. Open Settings to add one.')
       return
     }
 
@@ -197,9 +189,8 @@ app.whenReady().then(async () => {
       return
     }
 
-    event.sender.send('llm:provider', getActiveProvider())
+    event.sender.send('llm:model', getActiveModel())
 
-    // Lazy-load MCP tools only if a known keyword is in the message
     let mcpTools: any[] = []
     const triggeredServerId = detectMcpServerId(userMessage)
     if (triggeredServerId) {
@@ -213,15 +204,14 @@ app.whenReady().then(async () => {
 
     try {
       const fullResponse = await runAgentLoopWithFallback(
-        geminiKey, grokKey, formatHistory(history), win,
+        apiKey, formatHistory(history), win,
         (chunk) => event.sender.send('chat:chunk', chunk),
         (step)  => {
           event.sender.send('chat:step', step)
-          if (step.type === 'provider_switched') {
-            event.sender.send('llm:provider', step.to)
+          if (step.type === 'model_switched') {
+            event.sender.send('llm:model', step.to)
           }
           if (step.type === 'usage') {
-            // push live usage updates so the header meter refreshes after every call
             event.sender.send('usage:tick')
           }
         },
@@ -238,7 +228,7 @@ app.whenReady().then(async () => {
       ).get(chatId) as { count: number }).count
 
       if (msgCount <= 2 && saveUserMessage) {
-        generateChatTitle(geminiKey, grokKey, userMessage, fullResponse)
+        generateChatTitle(apiKey, userMessage, fullResponse)
           .then(title => {
             db.prepare('UPDATE chats SET title = ? WHERE id = ?').run(title, chatId)
             event.sender.send('chat:titled', { chatId, title })
@@ -246,16 +236,15 @@ app.whenReady().then(async () => {
           .catch(() => {})
       }
     } catch (err: any) {
-      const from = getActiveProvider()
-      console.error(`[main] Chat failed | provider=${from} | ${err?.message}`)
+      const model = getActiveModel()
+      console.error(`[main] Chat failed | model=${model} | ${err?.message}`)
 
       if (isQuotaError(err)) {
-        event.sender.send('llm:quota-hit', {
-          from, hasGrok: !!grokKey, hasGemini: !!geminiKey,
-          message: humanizeError(err, from),
-        })
+        // All models in the chain hit quota — unusual. Surface as error.
+        event.sender.send('chat:error',
+          `All Gemini models hit rate limits. Try again in a minute. (${humanizeError(err, model)})`)
       } else {
-        event.sender.send('chat:error', humanizeError(err, from))
+        event.sender.send('chat:error', humanizeError(err, model))
       }
     }
   }
@@ -264,7 +253,6 @@ app.whenReady().then(async () => {
     const history = db.prepare(
       'SELECT role, content FROM messages WHERE chat_id = ? ORDER BY created_at ASC LIMIT 20'
     ).all(chatId) as { role: string; content: string }[]
-    // history currently excludes the new message; runChat will save it
     await runChat(event, chatId, userMessage, [...history, { role: 'user', content: userMessage }], true)
   })
 
@@ -285,38 +273,34 @@ app.whenReady().then(async () => {
     await runChat(event, chatId, lastUser?.content ?? '', msgs, false)
   })
 
-  // ── Tool Approval ─────────────────────────────────────
   ipcMain.handle('tool:approve', (_e, approved: boolean) => {
     resolveApproval(approved); return true
   })
 
-  // ── LLM Provider ──────────────────────────────────────
-  ipcMain.handle('llm:setProvider', (_e, provider: LlmProvider) => {
-    setActiveProvider(provider); return true
+  // ── LLM Model selection (no more providers; just Gemini model choice) ────
+  ipcMain.handle('llm:setModel', (_e, model: GeminiModel) => {
+    if (!MODEL_CHAIN.includes(model)) return false
+    setActiveModel(model)
+    storeSet('active_model', model)
+    return true
   })
-  ipcMain.handle('llm:getProvider', () => getActiveProvider())
+  ipcMain.handle('llm:getModel', () => getActiveModel())
+  ipcMain.handle('llm:getChain', () => MODEL_CHAIN)
 
-  // Validate an API key by making a cheap test call. Returns {ok, error?}
-  ipcMain.handle('llm:testKey', async (_e, provider: LlmProvider, apiKey: string) => {
+  // Validate a Gemini API key
+  ipcMain.handle('llm:testKey', async (_e, apiKey: string) => {
     try {
-      console.log(`[main] Testing ${provider} key…`)
-      if (provider === 'gemini') {
-        const { ChatGoogleGenerativeAI } = await import('@langchain/google-genai')
-        const m = new ChatGoogleGenerativeAI({ apiKey, model: 'gemini-2.5-flash', apiVersion: 'v1beta' })
-        await m.invoke('ping')
-      } else {
-        const { ChatOpenAI } = await import('@langchain/openai')
-        const m = new ChatOpenAI({
-          apiKey, modelName: 'grok-3-fast',
-          configuration: { baseURL: 'https://api.x.ai/v1' },
-        })
-        await m.invoke('ping')
-      }
-      console.log(`[main] ${provider} key: OK`)
+      console.log('[main] Testing Gemini key…')
+      const { ChatGoogleGenerativeAI } = await import('@langchain/google-genai')
+      const m = new ChatGoogleGenerativeAI({
+        apiKey, model: 'gemini-2.5-flash', apiVersion: 'v1beta',
+      })
+      await m.invoke('ping')
+      console.log('[main] Gemini key: OK')
       return { ok: true }
     } catch (err: any) {
-      console.log(`[main] ${provider} key: FAILED — ${err?.message}`)
-      return { ok: false, error: humanizeError(err, provider) }
+      console.log(`[main] Gemini key: FAILED — ${err?.message}`)
+      return { ok: false, error: humanizeError(err, 'gemini-2.5-flash') }
     }
   })
 
@@ -332,8 +316,6 @@ app.whenReady().then(async () => {
     return true
   })
 
-  // Save MCP config AND test-connect to verify it actually works.
-  // Returns { ok, toolCount?, error? } so the UI can show ✓ or ✗.
   ipcMain.handle('mcp:enableWithEnv', async (_e, serverId: string, envValues: Record<string, string>, serverConfig: any) => {
     for (const [key, value] of Object.entries(envValues)) {
       storeSet(`mcp_env_${serverId}_${key}`, value)
@@ -354,7 +336,6 @@ app.whenReady().then(async () => {
     }
     writeMcpConfig(MCP_CONFIG_PATH, config)
 
-    // Actually test the connection so the user knows it works
     const result = await testMcpServer(MCP_CONFIG_PATH, serverId)
     return result
   })
@@ -364,11 +345,40 @@ app.whenReady().then(async () => {
     return { summary: getUsageSummary(activeChatId) }
   })
 
+  // ── WhatsApp ──────────────────────────────────────────
+  ipcMain.handle('whatsapp:start', async () => {
+    return await startWhatsAppServer()
+  })
+
+  ipcMain.handle('whatsapp:stop', () => {
+    stopWhatsAppServer()
+    return true
+  })
+
+  ipcMain.handle('whatsapp:status', async () => {
+    // Poll underlying server for fresh state then return
+    return await pollWhatsAppStatus()
+  })
+
+  ipcMain.handle('whatsapp:getStatusSync', () => {
+    return getWhatsAppStatus()
+  })
+
+  ipcMain.handle('whatsapp:logout', async () => {
+    await logoutWhatsApp()
+    return true
+  })
+
   createWindow()
 })
 
 app.on('window-all-closed', () => {
+  stopWhatsAppServer()
   if (process.platform !== 'darwin') app.quit()
+})
+
+app.on('before-quit', () => {
+  stopWhatsAppServer()
 })
 
 process.on('uncaughtException', (err) => {

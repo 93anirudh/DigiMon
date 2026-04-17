@@ -487,29 +487,6 @@ html, body, #root {
   letter-spacing: -0.2px;
 }
 
-.provider-pill {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 10px;
-  border-radius: var(--r-full);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.1px;
-  flex-shrink: 0;
-  border: 1px solid transparent;
-}
-.provider-pill.gemini {
-  background: rgba(66,133,244,0.1);
-  color: #4285F4;
-  border-color: rgba(66,133,244,0.2);
-}
-.provider-pill.grok {
-  background: var(--accent-soft);
-  color: var(--accent);
-  border-color: var(--accent-glow);
-}
-
 .status-pill {
   padding: 3px 10px;
   border-radius: var(--r-full);
@@ -1349,25 +1326,6 @@ html, body, #root {
   to   { transform: translate(-50%, 0); opacity: 1; }
 }
 
-/* ── Clickable provider pill ─────────────────────────── */
-.provider-pill.clickable {
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: all var(--dur-fast);
-  display: flex; align-items: center; gap: 6px;
-}
-.provider-pill.clickable:hover {
-  transform: scale(1.03);
-  box-shadow: var(--shadow-xs);
-}
-.provider-swap {
-  font-size: 9px;
-  opacity: 0.6;
-}
-.provider-pill.clickable:hover .provider-swap {
-  opacity: 1;
-}
-
 /* ── Usage Meter ─────────────────────────────────────── */
 .usage-meter-wrap {
   position: relative;
@@ -1576,4 +1534,77 @@ html, body, #root {
   color: var(--text3);
   line-height: 1.5;
   text-align: center;
+}
+
+/* ── Model pill (replaces provider pill) ─────────────── */
+.model-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: var(--r-full);
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  background: rgba(66,133,244,0.1);
+  color: #4285F4;
+  border-color: rgba(66,133,244,0.2);
+  white-space: nowrap;
+}
+.model-pill.clickable {
+  cursor: pointer;
+  transition: all var(--dur-fast);
+}
+.model-pill.clickable:hover {
+  transform: scale(1.03);
+  box-shadow: var(--shadow-xs);
+}
+.model-swap {
+  font-size: 9px;
+  opacity: 0.6;
+  margin-left: 2px;
+}
+.model-pill.clickable:hover .model-swap { opacity: 1; }
+
+/* ── WhatsApp setup ──────────────────────────────────── */
+.wa-qr-wrap {
+  display: inline-block;
+  padding: 16px;
+  background: white;
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-sm);
+  margin: 8px 0;
+}
+.wa-qr-img {
+  display: block;
+  width: 220px;
+  height: 220px;
+  image-rendering: pixelated;
+}
+.wa-qr-placeholder {
+  padding: 50px 20px;
+  background: var(--surface2);
+  border: 1px dashed var(--border-md);
+  border-radius: var(--r-md);
+  margin: 8px 0;
+}
+.wa-connected {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  background: var(--success-soft);
+  border: 1px solid rgba(48,164,108,0.25);
+  border-radius: var(--r-sm);
+}
+.wa-connected-icon {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--success);
+  color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  flex-shrink: 0;
 }

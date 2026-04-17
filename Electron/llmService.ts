@@ -1,5 +1,4 @@
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
-import { ChatOpenAI } from '@langchain/openai'
 import {
   HumanMessage, AIMessage, SystemMessage, ToolMessage
 } from '@langchain/core/messages'
@@ -13,13 +12,34 @@ import { requestApproval } from './approvalGate'
 import { extractTokenUsage, recordUsage } from './usageService'
 import type { BrowserWindow } from 'electron'
 
-// ── Active provider state ─────────────────────────────
-export type LlmProvider = 'gemini' | 'grok'
-let activeProvider: LlmProvider = 'gemini'
-export function getActiveProvider(): LlmProvider { return activeProvider }
-export function setActiveProvider(p: LlmProvider) {
-  activeProvider = p
-  console.log(`[llm] Provider → ${p}`)
+// ── Gemini model chain ────────────────────────────────
+// Ordered by preference. Auto-fallback walks this list on quota/network errors.
+// gemini-3-pro = best quality but highest cost & strictest rate limits
+// gemini-2.5-pro = solid middle ground
+// gemini-2.5-flash = fastest, cheapest, highest availability — last-resort fallback
+export type GeminiModel = 'gemini-3-pro' | 'gemini-2.5-pro' | 'gemini-2.5-flash'
+
+export const MODEL_CHAIN: GeminiModel[] = ['gemini-3-pro', 'gemini-2.5-pro', 'gemini-2.5-flash']
+
+// Map our friendly IDs to the actual API model strings
+const MODEL_API_ID: Record<GeminiModel, string> = {
+  'gemini-3-pro':     'gemini-3-pro-preview',
+  'gemini-2.5-pro':   'gemini-2.5-pro',
+  'gemini-2.5-flash': 'gemini-2.5-flash',
+}
+
+// Display labels for the UI
+export const MODEL_LABEL: Record<GeminiModel, string> = {
+  'gemini-3-pro':     'Gemini 3 Pro',
+  'gemini-2.5-pro':   'Gemini 2.5 Pro',
+  'gemini-2.5-flash': 'Gemini 2.5 Flash',
+}
+
+let activeModel: GeminiModel = 'gemini-3-pro'
+export function getActiveModel(): GeminiModel { return activeModel }
+export function setActiveModel(m: GeminiModel) {
+  activeModel = m
+  console.log(`[llm] Model → ${m}`)
 }
 
 // ── System prompt ─────────────────────────────────────
@@ -78,43 +98,24 @@ export const TOOL_MAP: Record<string, (args: any) => Promise<string>> = {
   write_file:     (a) => writeFileTool.invoke(a),
 }
 
-// ── Model builders ────────────────────────────────────
-function buildGeminiModel(apiKey: string, extraTools: any[] = []) {
-  return new ChatGoogleGenerativeAI({
-    apiKey, model: 'gemini-2.5-flash',
-    streaming: false, apiVersion: 'v1beta',
-  }).bindTools([...ALL_TOOLS, ...extraTools])
-}
-
-function buildGrokModel(apiKey: string, extraTools: any[] = []) {
-  return new ChatOpenAI({
-    apiKey, modelName: 'grok-3-fast',
-    configuration: { baseURL: 'https://api.x.ai/v1' },
-    streaming: false,
-  }).bindTools([...ALL_TOOLS, ...extraTools])
-}
-
+// ── Model builder ─────────────────────────────────────
 export function buildModel(
-  geminiKey: string | null,
-  grokKey: string | null,
+  apiKey: string,
+  model: GeminiModel,
   extraTools: any[] = []
 ) {
-  if (activeProvider === 'grok' && grokKey) return buildGrokModel(grokKey, extraTools)
-  if (geminiKey) return buildGeminiModel(geminiKey, extraTools)
-  throw new Error('No API key available for the active provider.')
+  return new ChatGoogleGenerativeAI({
+    apiKey,
+    model: MODEL_API_ID[model],
+    streaming: false,
+    apiVersion: 'v1beta',
+  }).bindTools([...ALL_TOOLS, ...extraTools])
 }
 
-function buildSimpleModel(geminiKey: string | null, grokKey: string | null) {
-  if (activeProvider === 'grok' && grokKey) {
-    return new ChatOpenAI({ apiKey: grokKey, modelName: 'grok-3-fast',
-      configuration: { baseURL: 'https://api.x.ai/v1' } })
-  }
-  if (geminiKey) {
-    return new ChatGoogleGenerativeAI({
-      apiKey: geminiKey, model: 'gemini-2.5-flash', apiVersion: 'v1beta',
-    })
-  }
-  throw new Error('No API key available.')
+function buildSimpleModel(apiKey: string, model: GeminiModel = 'gemini-2.5-flash') {
+  return new ChatGoogleGenerativeAI({
+    apiKey, model: MODEL_API_ID[model], apiVersion: 'v1beta',
+  })
 }
 
 // ── History formatter ─────────────────────────────────
@@ -146,20 +147,28 @@ export function isNetworkError(err: any): boolean {
          msg.includes('etimedout') || msg.includes('fetch failed')
 }
 
-// Turn any error into a clean human message
-export function humanizeError(err: any, provider: LlmProvider): string {
-  if (isQuotaError(err))   return `${provider === 'gemini' ? 'Gemini' : 'Grok'} hit its rate limit.`
-  if (isAuthError(err))    return `${provider === 'gemini' ? 'Gemini' : 'Grok'} API key is invalid. Check it in Settings.`
-  if (isNetworkError(err)) return `Network issue — can't reach the ${provider === 'gemini' ? 'Gemini' : 'Grok'} API. Check your connection.`
+export function isServerError(err: any): boolean {
+  const msg = (err?.message ?? '').toLowerCase()
+  return msg.includes('500') || msg.includes('503') || msg.includes('unavailable') ||
+         msg.includes('internal error') || msg.includes('overloaded')
+}
+
+export function humanizeError(err: any, model: GeminiModel): string {
+  const label = MODEL_LABEL[model]
+  if (isQuotaError(err))   return `${label} hit its rate limit.`
+  if (isAuthError(err))    return `Your Gemini API key is invalid. Check it in Settings.`
+  if (isNetworkError(err)) return `Can't reach the Gemini API. Check your connection.`
+  if (isServerError(err))  return `${label} is temporarily unavailable.`
   const msg = err?.message ?? 'Unknown error'
   return msg.length > 160 ? msg.slice(0, 160) + '…' : msg
 }
 
 export async function generateChatTitle(
-  geminiKey: string | null, grokKey: string | null,
+  apiKey: string,
   userMsg: string, assistantMsg: string
 ): Promise<string> {
-  const model = buildSimpleModel(geminiKey, grokKey)
+  // Always use Flash for titles — cheapest, fastest, and quality doesn't matter for 4 words
+  const model = buildSimpleModel(apiKey, 'gemini-2.5-flash')
   const prompt = `Generate a concise 4-word title for this conversation.
 Reply with ONLY the title. No quotes, no punctuation, no explanation.
 User: ${userMsg.slice(0, 150)}
@@ -169,23 +178,22 @@ Assistant: ${assistantMsg.slice(0, 150)}`
   return text.trim().slice(0, 40)
 }
 
-// ── Step event type ────────────────────────────────────
+// ── Step event ─────────────────────────────────────────
 export interface StepEvent {
-  type: 'thinking' | 'tool_call' | 'tool_result' | 'done' | 'provider_switched' | 'usage'
+  type: 'thinking' | 'tool_call' | 'tool_result' | 'done' | 'model_switched' | 'usage'
   toolName?: string
   toolArgs?: any
   result?: string
   iteration?: number
-  from?: LlmProvider
-  to?: LlmProvider
-  // usage event payload
+  from?: GeminiModel
+  to?: GeminiModel
+  reason?: string
   inputTokens?: number
   outputTokens?: number
   totalTokens?: number
   durationMs?: number
 }
 
-// ── Invoke with timeout — never hang forever ──────────
 async function invokeWithTimeout(model: any, messages: any[], timeoutMs = 45000): Promise<any> {
   return Promise.race([
     model.invoke(messages),
@@ -197,18 +205,19 @@ async function invokeWithTimeout(model: any, messages: any[], timeoutMs = 45000)
 
 // ── The Agent Loop ─────────────────────────────────────
 export async function runAgentLoop(
-  geminiKey: string | null,
-  grokKey: string | null,
+  apiKey: string,
   messages: any[],
   win: BrowserWindow,
   onChunk: (text: string) => void,
   onStep: (step: StepEvent) => void,
   mcpTools: any[] = [],
-  chatId: number | null = null
+  chatId: number | null = null,
+  modelOverride?: GeminiModel
 ): Promise<string> {
-  console.log(`[agent] Starting loop | provider=${activeProvider} | messages=${messages.length} | mcpTools=${mcpTools.length} | chatId=${chatId}`)
+  const usingModel = modelOverride ?? activeModel
+  console.log(`[agent] Starting loop | model=${usingModel} | messages=${messages.length} | mcpTools=${mcpTools.length} | chatId=${chatId}`)
 
-  const model = buildModel(geminiKey, grokKey, mcpTools)
+  const model = buildModel(apiKey, usingModel, mcpTools)
   const currentMessages = [new SystemMessage(SYSTEM_PROMPT), ...messages]
 
   const dynamicToolMap: Record<string, (args: any) => Promise<string>> = { ...TOOL_MAP }
@@ -218,21 +227,20 @@ export async function runAgentLoop(
 
   for (let i = 0; i < 5; i++) {
     onStep({ type: 'thinking', iteration: i + 1 })
-    console.log(`[agent] Iteration ${i + 1}: invoking model…`)
+    console.log(`[agent] Iteration ${i + 1}: invoking ${usingModel}…`)
 
     const invokeStart = Date.now()
     const response = await invokeWithTimeout(model, currentMessages)
     const invokeMs = Date.now() - invokeStart
     currentMessages.push(response)
 
-    // Record usage BEFORE any tool call — one usage_event per model invoke
     const usage = extractTokenUsage(response)
     console.log(`[agent] Iter ${i + 1} done in ${invokeMs}ms | tokens in=${usage.inputTokens} out=${usage.outputTokens} total=${usage.totalTokens}`)
     recordUsage({
       chatId,
-      messageId: null, // linked later when assistant message row is saved
-      provider: activeProvider,
-      model: activeProvider === 'gemini' ? 'gemini-2.5-flash' : 'grok-3-fast',
+      messageId: null,
+      provider: 'gemini',
+      model: usingModel,
       inputTokens: usage.inputTokens,
       outputTokens: usage.outputTokens,
       totalTokens: usage.totalTokens,
@@ -271,7 +279,6 @@ export async function runAgentLoop(
 
       let toolResult: string
       if (needsApproval) {
-        console.log(`[agent] Awaiting approval for: ${toolName}`)
         const approved = await requestApproval(win, toolName, toolArgs)
         toolResult = approved
           ? (await dynamicToolMap[toolName]?.(toolArgs)) ?? 'Tool not found'
@@ -290,13 +297,9 @@ export async function runAgentLoop(
   return 'Maximum tool iterations reached.'
 }
 
-// ── Auto-fallback wrapper ──────────────────────────────
-// If the active provider errors (quota/network), automatically switch to the
-// other provider and retry once. Emits a provider_switched step so the UI can
-// show a subtle toast.
+// ── Fallback wrapper — walks MODEL_CHAIN on quota/network/server errors ─────
 export async function runAgentLoopWithFallback(
-  geminiKey: string | null,
-  grokKey: string | null,
+  apiKey: string,
   messages: any[],
   win: BrowserWindow,
   onChunk: (text: string) => void,
@@ -304,26 +307,40 @@ export async function runAgentLoopWithFallback(
   mcpTools: any[] = [],
   chatId: number | null = null
 ): Promise<string> {
-  try {
-    return await runAgentLoop(geminiKey, grokKey, messages, win, onChunk, onStep, mcpTools, chatId)
-  } catch (err: any) {
-    const from = getActiveProvider()
-    const hasOther = from === 'gemini' ? !!grokKey : !!geminiKey
-    const recoverable = isQuotaError(err) || isNetworkError(err)
+  // Start from the user's currently-selected model and walk down the chain
+  const startIndex = MODEL_CHAIN.indexOf(activeModel)
+  const chain = startIndex >= 0 ? MODEL_CHAIN.slice(startIndex) : MODEL_CHAIN
+  const originalActive = activeModel
 
-    if (hasOther && recoverable) {
-      const to: LlmProvider = from === 'gemini' ? 'grok' : 'gemini'
-      console.log(`[agent] ${from} failed (${humanizeError(err, from)}) — auto-switching to ${to}`)
-      setActiveProvider(to)
-      onStep({ type: 'provider_switched', from, to })
-      try {
-        return await runAgentLoop(geminiKey, grokKey, messages, win, onChunk, onStep, mcpTools, chatId)
-      } catch (retryErr: any) {
-        setActiveProvider(from)
-        throw retryErr
+  let lastErr: any = null
+
+  for (let i = 0; i < chain.length; i++) {
+    const model = chain[i]
+    try {
+      if (i > 0) {
+        const from = chain[i - 1]
+        const reason = isQuotaError(lastErr) ? 'rate limit'
+                      : isNetworkError(lastErr) ? 'network issue'
+                      : isServerError(lastErr) ? 'server unavailable'
+                      : 'error'
+        console.log(`[agent] Falling back ${from} → ${model} (${reason})`)
+        setActiveModel(model)
+        onStep({ type: 'model_switched', from, to: model, reason })
       }
+      return await runAgentLoop(apiKey, messages, win, onChunk, onStep, mcpTools, chatId, model)
+    } catch (err: any) {
+      lastErr = err
+      const recoverable = isQuotaError(err) || isNetworkError(err) || isServerError(err)
+      if (!recoverable || i === chain.length - 1) {
+        // Restore the user's original model choice before throwing
+        setActiveModel(originalActive)
+        throw err
+      }
+      // else: loop continues to next model in chain
     }
-
-    throw err
   }
+
+  // Shouldn't reach here, but just in case
+  setActiveModel(originalActive)
+  throw lastErr
 }

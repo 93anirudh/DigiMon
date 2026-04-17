@@ -100,7 +100,8 @@ export interface UsageSummary {
     input_tokens: number
     output_tokens: number
     request_count: number
-    by_provider: { gemini: number; grok: number }
+    // Tokens grouped by the specific Gemini model used
+    by_model: Record<string, number>
   }
   last_hour: {
     total_tokens: number
@@ -128,12 +129,22 @@ export function getUsageSummary(activeChatId: number | null): UsageSummary {
       COALESCE(SUM(total_tokens), 0)   AS total_tokens,
       COALESCE(SUM(input_tokens), 0)   AS input_tokens,
       COALESCE(SUM(output_tokens), 0)  AS output_tokens,
-      COUNT(*) AS request_count,
-      COALESCE(SUM(CASE WHEN provider='gemini' THEN total_tokens ELSE 0 END), 0) AS gemini_tokens,
-      COALESCE(SUM(CASE WHEN provider='grok'   THEN total_tokens ELSE 0 END), 0) AS grok_tokens
+      COUNT(*) AS request_count
     FROM usage_events
     WHERE created_at >= ?
   `).get(todayISO) as any
+
+  // Per-model breakdown for today
+  const byModelRows = db.prepare(`
+    SELECT COALESCE(model, 'unknown') AS model, COALESCE(SUM(total_tokens), 0) AS tokens
+    FROM usage_events WHERE created_at >= ?
+    GROUP BY model
+  `).all(todayISO) as Array<{ model: string; tokens: number }>
+
+  const by_model: Record<string, number> = {}
+  for (const r of byModelRows) {
+    by_model[r.model] = r.tokens
+  }
 
   // Last hour
   const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19)
@@ -167,10 +178,7 @@ export function getUsageSummary(activeChatId: number | null): UsageSummary {
       input_tokens: today.input_tokens,
       output_tokens: today.output_tokens,
       request_count: today.request_count,
-      by_provider: {
-        gemini: today.gemini_tokens,
-        grok: today.grok_tokens,
-      },
+      by_model,
     },
     last_hour: {
       total_tokens: lastHour.total_tokens,
