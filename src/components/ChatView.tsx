@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import mermaid from 'mermaid'
 import { UsageMeter } from './UsageMeter'
+import { ModelDropdown } from './ModelDropdown'
 
 // ── Mermaid ───────────────────────────────────────────
 let mermaidTheme = ''
@@ -227,10 +228,6 @@ export function ChatView({ chatId, chatTitle, activeModel, dark, onSwitchModel }
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
   }
 
-  const handleModelClick = () => {
-    onSwitchModel(nextModel(activeModel))
-  }
-
   const mdComponents: any = {
     code({ className, children }: any) {
       const lang = /language-(\w+)/.exec(className || '')?.[1]
@@ -247,21 +244,13 @@ export function ChatView({ chatId, chatTitle, activeModel, dark, onSwitchModel }
   )
 
   const isWaiting = streaming && !streamBuffer && steps.length === 0
-  const modelLabel = MODEL_LABEL[activeModel] ?? activeModel
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="chat-header">
         <span className="chat-header-title">{chatTitle === '…' ? 'New conversation' : chatTitle}</span>
         <UsageMeter activeChatId={chatId} />
-        <button
-          className="model-pill clickable"
-          onClick={handleModelClick}
-          title={`Click to cycle model · Current: ${modelLabel}`}
-        >
-          ✦ {modelLabel}
-          <span className="model-swap">⇄</span>
-        </button>
+        <ModelDropdown activeModel={activeModel} onChange={onSwitchModel} />
         {streaming && <span className="status-pill">Thinking…</span>}
       </div>
 

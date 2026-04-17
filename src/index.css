@@ -1608,3 +1608,108 @@ html, body, #root {
   font-weight: 700;
   flex-shrink: 0;
 }
+
+/* ── Model Dropdown ─────────────────────────────────────── */
+.model-dropdown-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.model-dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border-md);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--dur-fast);
+  white-space: nowrap;
+}
+.model-dropdown-trigger:hover {
+  background: var(--surface3);
+  border-color: var(--border-strong);
+}
+
+.model-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 4px var(--accent-glow);
+  flex-shrink: 0;
+}
+
+.model-caret {
+  font-size: 8px;
+  color: var(--text3);
+  margin-left: 2px;
+}
+
+.model-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 240px;
+  background: var(--surface);
+  border: 1px solid var(--border-md);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+  padding: 4px;
+  animation: popIn 0.15s var(--ease);
+}
+
+.model-dropdown-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-sm);
+  color: var(--text);
+  cursor: pointer;
+  transition: background var(--dur-fast);
+  font-family: var(--font);
+}
+.model-dropdown-item:hover {
+  background: var(--surface2);
+}
+.model-dropdown-item.active {
+  background: var(--accent-soft);
+}
+
+.model-dropdown-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.model-dropdown-label {
+  color: var(--text);
+}
+
+.model-dropdown-item.active .model-dropdown-label {
+  color: var(--accent);
+}
+
+.model-dropdown-check {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.model-dropdown-desc {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text3);
+  line-height: 1.4;
+}
