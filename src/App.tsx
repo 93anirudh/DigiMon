@@ -150,31 +150,39 @@ export default function App() {
 declare global { interface Window { _pendingSuggestion?: string } }
 
 const SUGGESTIONS = [
-  { icon: '📋', title: 'GST Filing Workflow', desc: 'Show GSTR-3B process as a flowchart',
+  { icon: '📋', title: 'GST filing process',
     prompt: 'Show me the complete GSTR-3B monthly filing process as a detailed Mermaid flowchart.' },
-  { icon: '📊', title: 'TDS Rate Table', desc: 'All TDS sections for FY 2024-25',
+  { icon: '📊', title: 'TDS rate table',
     prompt: 'Create a markdown table of TDS rates for FY 2024-25 covering sections 192, 194A, 194C, 194D, 194H, 194I, 194J, 194Q.' },
-  { icon: '🗂️', title: '3CD Audit Checklist', desc: 'Clause-wise tax audit checklist',
+  { icon: '🗂️', title: '3CD audit checklist',
     prompt: 'Generate a Form 3CD tax audit checklist organised by clause number, as a table.' },
-  { icon: '📅', title: 'Compliance Calendar', desc: 'Key dates for this month',
+  { icon: '📅', title: 'Compliance calendar',
     prompt: 'Create a compliance calendar for this month as a table — GST, TDS, ROC, income tax due dates.' },
+  { icon: '💡', title: 'Help me draft an email',
+    prompt: 'Help me draft a polite email to a client asking for pending GST invoice details before the return due date.' },
 ]
+
+function greetingForTime(): string {
+  const h = new Date().getHours()
+  if (h < 12) return 'Good morning'
+  if (h < 17) return 'Good afternoon'
+  return 'Good evening'
+}
 
 function WelcomeScreen({ onSelectSuggestion }: { onSelectSuggestion: (text: string) => void }) {
   return (
     <div className="welcome-screen">
-      <div className="welcome-logo">🏛️</div>
-      <div className="welcome-title">DigiMon</div>
+      <div className="welcome-logo" />
+      <div className="welcome-title">{greetingForTime()}</div>
       <div className="welcome-sub">
-        Your CA-practice agent. Ask about GST, TDS, ITR, audit, or have it run commands on your machine — with tables and diagrams built in.
+        How can I help you today?
       </div>
 
       <div className="suggestion-grid">
         {SUGGESTIONS.map((s, i) => (
           <button key={i} className="suggestion-card" onClick={() => onSelectSuggestion(s.prompt)}>
             <span className="suggestion-icon">{s.icon}</span>
-            <div className="suggestion-title">{s.title}</div>
-            <div className="suggestion-desc">{s.desc}</div>
+            <span className="suggestion-title">{s.title}</span>
           </button>
         ))}
       </div>
