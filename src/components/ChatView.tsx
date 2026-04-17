@@ -9,25 +9,23 @@ import { ModelDropdown } from './ModelDropdown'
 let mermaidTheme = ''
 
 function initMermaid(dark: boolean) {
-  const theme = dark ? 'dark' : 'default'
-  if (mermaidTheme === theme) return
-  mermaidTheme = theme
+  // Aetheris redesign: light glass theme — always use 'default' (light) theme
   mermaid.initialize({
-    startOnLoad: false, theme, securityLevel: 'loose',
+    startOnLoad: false, theme: 'default', securityLevel: 'loose',
     fontFamily: 'Inter, system-ui, sans-serif', fontSize: 13,
-    themeVariables: dark ? {
-      primaryColor: '#14B8A6',
-      primaryTextColor: '#ECEEEB',
-      primaryBorderColor: '#0FA599',
-      lineColor: '#4C5F5B',
-      sectionBkgColor: '#0F2926',
-      altSectionBkgColor: '#0A1F1C',
-      gridColor: '#1A3935',
+    themeVariables: {
+      primaryColor: '#C4B5FD',
+      primaryTextColor: '#1A1A2E',
+      primaryBorderColor: '#8B5CF6',
+      lineColor: '#7A7A95',
+      sectionBkgColor: '#EDE9FE',
+      altSectionBkgColor: '#F5F3FF',
+      gridColor: '#E9D5FF',
       background: 'transparent',
-      mainBkg: '#0F2926',
-      secondBkg: '#14302C',
-      tertiaryColor: '#1A3935',
-    } : undefined,
+      mainBkg: '#F5F3FF',
+      secondBkg: '#EDE9FE',
+      tertiaryColor: '#DDD6FE',
+    },
   })
 }
 

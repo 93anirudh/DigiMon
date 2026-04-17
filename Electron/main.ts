@@ -69,7 +69,7 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1300, height: 840, minWidth: 900, minHeight: 600,
     title: 'DigiMon',
-    backgroundColor: '#0A1F1C',
+    backgroundColor: '#E8E6F5',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

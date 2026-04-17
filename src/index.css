@@ -4,67 +4,72 @@
 /* ── Reset ──────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* ── Design Tokens: Aetheris (dark-only, glassmorphic) ── */
+/* ── Design Tokens: Aetheris (light glass on pastel) ── */
 :root, .dark {
-  /* Backgrounds — deep forest + teal gradient backdrop */
-  --bg:              #0A1F1C;
-  --bg-deep:         #061816;
-  --bg-gradient:     radial-gradient(ellipse at top left,  #1A4A42 0%, transparent 55%),
-                     radial-gradient(ellipse at top right, #2E5F5A 0%, transparent 55%),
-                     radial-gradient(ellipse at bottom,    #0F3430 0%, transparent 60%),
-                     #0A1F1C;
+  /* BACKDROP — soft pastel gradient behind the floating glass panel.
+     Purple top-right, blue top-left, pink bottom-left, mint bottom-right.
+     This is the colorful area that peeks around the floating panel. */
+  --bg:              #E8E6F5;
+  --bg-gradient:     radial-gradient(ellipse 60% 50% at 15% 10%,  #9CC5F1 0%, transparent 60%),
+                     radial-gradient(ellipse 50% 45% at 85% 5%,   #C4A7F5 0%, transparent 65%),
+                     radial-gradient(ellipse 55% 50% at 10% 95%,  #D5B5F5 0%, transparent 60%),
+                     radial-gradient(ellipse 60% 45% at 90% 90%,  #C9F2B8 0%, transparent 60%),
+                     radial-gradient(ellipse 40% 35% at 50% 100%, #F5C6D5 0%, transparent 55%),
+                     #E8E6F5;
 
-  /* Surfaces — glass layers over the backdrop */
-  --surface:         rgba(255,255,255,0.035);
-  --surface2:        rgba(255,255,255,0.06);
-  --surface3:        rgba(255,255,255,0.09);
-  --surface-solid:   #0F2926;   /* opaque fallback for dropdowns, modals */
-  --surface-glass:   rgba(14, 36, 34, 0.55);  /* the main floating panel */
+  /* FLOATING PANEL — the frosted glass container that sits on top.
+     Very light white with ~50% opacity so the pastel colors show through. */
+  --surface-glass:   rgba(255, 255, 255, 0.42);
+  --surface:         rgba(255, 255, 255, 0.55);
+  --surface2:        rgba(255, 255, 255, 0.72);
+  --surface3:        rgba(255, 255, 255, 0.85);
+  --surface-solid:   #FFFFFF;
 
-  /* Borders — subtle, tinted */
-  --border:          rgba(255,255,255,0.06);
-  --border-md:       rgba(255,255,255,0.1);
-  --border-strong:   rgba(255,255,255,0.16);
-  --border-accent:   rgba(20,184,166,0.28);
+  /* Borders — very soft on glass */
+  --border:          rgba(255, 255, 255, 0.45);
+  --border-md:       rgba(255, 255, 255, 0.6);
+  --border-strong:   rgba(120, 120, 150, 0.2);
+  --border-accent:   rgba(139, 92, 246, 0.35);
 
-  /* Text — cool off-whites */
-  --text:            #ECEEEB;
-  --text2:           #A4B4B0;
-  --text3:           #7A8B87;
-  --text4:           #4C5F5B;
+  /* Text — dark for contrast on light glass */
+  --text:            #1A1A2E;
+  --text2:           #4A4A65;
+  --text3:           #7A7A95;
+  --text4:           #AAABC0;
 
-  /* Primary accent — Switchlab teal */
-  --accent:          #14B8A6;
-  --accent-2:        #0FA599;
-  --accent-soft:     rgba(20,184,166,0.10);
-  --accent-glow:     rgba(20,184,166,0.22);
+  /* Primary accent — purple gradient (Aetheris-style).
+     We'll reintroduce teal for DigiMon identity in secondary places. */
+  --accent:          #8B5CF6;
+  --accent-2:        #7C3AED;
+  --accent-soft:     rgba(139, 92, 246, 0.10);
+  --accent-glow:     rgba(139, 92, 246, 0.25);
 
-  /* Secondary accent — DigiMon's orange-red (kept for highlights) */
-  --accent-warm:     #F16A50;
-  --accent-warm-soft: rgba(241,106,80,0.10);
+  /* Secondary accent — teal (for success, usage meter, small highlights) */
+  --accent-warm:     #14B8A6;
+  --accent-warm-soft: rgba(20, 184, 166, 0.12);
 
-  /* User bubble — teal gradient, Aetheris-style */
-  --user-bg:         linear-gradient(135deg, #14B8A6 0%, #0891B2 100%);
+  /* User bubble — purple→blue gradient, Aetheris exact */
+  --user-bg:         linear-gradient(135deg, #A78BFA 0%, #818CF8 50%, #60A5FA 100%);
   --user-text:       #FFFFFF;
 
   /* Semantic */
-  --success:         #34D399;
-  --success-soft:    rgba(52,211,153,0.10);
-  --warning:         #FBBF24;
-  --danger:          #F87171;
-  --danger-soft:     rgba(248,113,113,0.10);
-  --info:            #38BDF8;
-  --info-soft:       rgba(56,189,248,0.10);
+  --success:         #10B981;
+  --success-soft:    rgba(16, 185, 129, 0.10);
+  --warning:         #F59E0B;
+  --danger:          #EF4444;
+  --danger-soft:     rgba(239, 68, 68, 0.10);
+  --info:            #3B82F6;
+  --info-soft:       rgba(59, 130, 246, 0.10);
 
-  /* Shadows — soft for glass elements */
-  --shadow-xs:       0 1px 2px rgba(0,0,0,0.25);
-  --shadow-sm:       0 2px 6px rgba(0,0,0,0.28);
-  --shadow-md:       0 4px 16px rgba(0,0,0,0.32), 0 2px 4px rgba(0,0,0,0.22);
-  --shadow-lg:       0 16px 48px rgba(0,0,0,0.38), 0 4px 16px rgba(0,0,0,0.24);
-  --shadow-xl:       0 32px 80px rgba(0,0,0,0.5), 0 12px 32px rgba(0,0,0,0.32);
-  --shadow-glow:     0 0 0 1px rgba(255,255,255,0.04), 0 8px 32px rgba(0,0,0,0.32);
+  /* Shadows — soft, diffused, no harsh edges */
+  --shadow-xs:       0 1px 2px rgba(60, 60, 100, 0.06);
+  --shadow-sm:       0 2px 8px rgba(60, 60, 100, 0.08);
+  --shadow-md:       0 4px 16px rgba(60, 60, 100, 0.10), 0 2px 6px rgba(60, 60, 100, 0.06);
+  --shadow-lg:       0 12px 32px rgba(60, 60, 100, 0.14), 0 4px 12px rgba(60, 60, 100, 0.08);
+  --shadow-xl:       0 20px 60px rgba(60, 60, 100, 0.18), 0 8px 24px rgba(60, 60, 100, 0.10);
+  --shadow-glow:     0 0 0 1px rgba(255,255,255,0.5), 0 8px 32px rgba(60, 60, 100, 0.12);
 
-  /* Radius — softer, rounder */
+  /* Radius — soft, rounder */
   --r-xs: 6px;
   --r-sm: 10px;
   --r-md: 14px;
@@ -118,21 +123,25 @@ body {
   overflow: hidden;
   background: var(--bg-gradient);
   background-attachment: fixed;
-  padding: 16px;
+  padding: 20px;
   position: relative;
 }
 
 .app-shell::before {
-  /* Floating inner container — the glass panel Aetheris uses */
+  /* The floating white-glass inner container — this is the Aetheris hero element.
+     Opaque-ish white so foreground is readable, but still lets some color through. */
   content: '';
   position: absolute;
-  inset: 16px;
+  inset: 20px;
   border-radius: var(--r-2xl);
   background: var(--surface-glass);
-  backdrop-filter: blur(24px) saturate(140%);
-  -webkit-backdrop-filter: blur(24px) saturate(140%);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-xl);
+  backdrop-filter: blur(30px) saturate(160%);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+  border: 1px solid rgba(255,255,255,0.6);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.3) inset,
+    0 20px 60px rgba(60,60,100,0.15),
+    0 8px 24px rgba(60,60,100,0.08);
   pointer-events: none;
   z-index: 0;
 }
@@ -151,7 +160,7 @@ body {
   flex-direction: column;
   height: 100%;
   background: transparent;
-  border-right: 1px solid var(--border);
+  border-right: 1px solid rgba(255,255,255,0.35);
   position: relative;
   z-index: 10;
   overflow: hidden;
@@ -233,10 +242,12 @@ body {
 }
 .sidebar-search input {
   width: 100%;
-  padding: 6px 10px 6px 28px;
-  border-radius: var(--r-sm);
-  border: 1px solid var(--border-md);
-  background: var(--surface2);
+  padding: 8px 10px 8px 30px;
+  border-radius: var(--r-full);
+  border: 1px solid rgba(255,255,255,0.5);
+  background: rgba(255,255,255,0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   color: var(--text);
   font-family: var(--font);
   font-size: 12px;
@@ -245,9 +256,9 @@ body {
 }
 .sidebar-search input::placeholder { color: var(--text3); }
 .sidebar-search input:focus {
-  border-color: var(--accent);
+  border-color: var(--border-accent);
   box-shadow: 0 0 0 2px var(--accent-glow);
-  background: var(--surface);
+  background: rgba(255,255,255,0.8);
 }
 .sidebar-search-icon {
   position: absolute;
@@ -268,24 +279,27 @@ body {
 .new-chat-btn {
   display: flex;
   align-items: center;
-  gap: 7px;
+  justify-content: center;
+  gap: 8px;
   width: 100%;
-  padding: 7px 10px;
-  border-radius: var(--r-sm);
-  border: 1px solid var(--border-md);
-  background: transparent;
-  color: var(--text2);
+  padding: 10px 14px;
+  border-radius: var(--r-full);
+  border: 1px solid rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--text);
   font-family: var(--font);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all var(--dur-fast) var(--ease);
-  margin-bottom: 8px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(60,60,100,0.05);
 }
 .new-chat-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-soft);
+  background: rgba(255,255,255,0.9);
+  box-shadow: 0 2px 8px rgba(60,60,100,0.1);
 }
 .new-chat-btn:active { transform: scale(0.98); }
 
@@ -312,14 +326,15 @@ body {
   gap: 8px;
   min-height: 34px;
 }
-.chat-item:hover { background: var(--surface2); }
+.chat-item:hover { background: rgba(255,255,255,0.5); }
 .chat-item.active {
-  background: var(--accent-soft);
-  border-color: var(--border-accent);
+  background: rgba(255,255,255,0.7);
+  border-color: rgba(255,255,255,0.9);
+  box-shadow: 0 1px 4px rgba(60,60,100,0.05);
 }
 .chat-item.active .chat-item-title {
   color: var(--text);
-  font-weight: 450;
+  font-weight: 500;
 }
 
 .chat-item-icon {
@@ -421,26 +436,26 @@ body {
 .welcome-logo {
   width: 96px; height: 96px;
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%,
-    #F8B4C8 0%, #E879F9 25%, #8B5CF6 55%, #14B8A6 85%);
+  background: radial-gradient(circle at 35% 30%,
+    #FFFFFF 0%, #FFE4E6 12%, #FDA4AF 30%, #F472B6 55%, #A78BFA 85%);
   display: flex; align-items: center; justify-content: center;
   font-size: 0;
   margin-bottom: 28px;
   box-shadow:
-    0 0 60px rgba(168,85,247,0.35),
-    0 0 120px rgba(20,184,166,0.2),
-    inset 0 2px 8px rgba(255,255,255,0.4);
+    0 0 60px rgba(244,114,182,0.4),
+    0 0 120px rgba(168,85,247,0.25),
+    inset 0 2px 8px rgba(255,255,255,0.6);
   position: relative;
   animation: float 6s ease-in-out infinite;
 }
 .welcome-logo::before {
   content: '';
   position: absolute;
-  top: 8px; left: 14px;
-  width: 28px; height: 20px;
+  top: 8px; left: 16px;
+  width: 32px; height: 22px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.6);
-  filter: blur(4px);
+  background: rgba(255,255,255,0.7);
+  filter: blur(5px);
 }
 @keyframes float {
   0%, 100% { transform: translateY(0); }
@@ -478,10 +493,10 @@ body {
 .suggestion-card {
   padding: 10px 18px;
   border-radius: var(--r-full);
-  border: 1px solid var(--border-md);
-  background: var(--surface);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   cursor: pointer;
   transition: all var(--dur-mid) var(--ease);
   display: flex;
@@ -489,12 +504,12 @@ body {
   gap: 8px;
   color: var(--text);
   font-family: var(--font);
+  box-shadow: 0 1px 4px rgba(60,60,100,0.05);
 }
 .suggestion-card:hover {
-  border-color: var(--border-accent);
-  background: var(--accent-soft);
+  background: rgba(255,255,255,0.85);
   transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 4px 12px rgba(60,60,100,0.1);
 }
 .suggestion-card:active { transform: translateY(0); }
 
@@ -579,13 +594,12 @@ body {
   border-radius: 22px 22px 6px 22px;
   font-size: 13.5px;
   line-height: 1.5;
-  font-weight: 450;
-  box-shadow: 0 4px 16px rgba(20,184,166,0.22);
+  font-weight: 500;
+  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.28);
   position: relative;
 }
 
 .user-bubble::after {
-  /* Small teal dot after the bubble — Aetheris detail */
   content: '';
   position: absolute;
   bottom: 4px;
@@ -593,8 +607,8 @@ body {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 6px var(--accent-glow);
+  background: #8B5CF6;
+  box-shadow: 0 0 6px rgba(139, 92, 246, 0.5);
 }
 
 /* Assistant message */
@@ -614,21 +628,22 @@ body {
   width: 22px; height: 22px;
   border-radius: 50%;
   background: radial-gradient(circle at 30% 30%,
-    #5EEAD4 0%, #14B8A6 35%, #0891B2 70%, #155E75 100%);
+    #FFD1DC 0%, #F8B4C8 20%, #E879F9 45%, #A78BFA 75%, #7C3AED 100%);
   display: flex; align-items: center; justify-content: center;
   font-size: 0;
   flex-shrink: 0;
-  box-shadow: 0 0 12px var(--accent-glow), inset 0 1px 2px rgba(255,255,255,0.3);
+  box-shadow:
+    0 0 10px rgba(168,85,247,0.3),
+    inset 0 1px 2px rgba(255,255,255,0.5);
   position: relative;
 }
 .assistant-avatar::before {
-  /* Glossy highlight */
   content: '';
   position: absolute;
   top: 2px; left: 3px;
   width: 7px; height: 5px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.55);
+  background: rgba(255,255,255,0.7);
   filter: blur(1.5px);
 }
 
@@ -685,8 +700,8 @@ body {
 
 /* Code blocks */
 .assistant-body pre {
-  background: rgba(0,0,0,0.25);
-  border: 1px solid var(--border-md);
+  background: rgba(30, 30, 50, 0.92);
+  border: 1px solid rgba(255,255,255,0.08);
   border-radius: var(--r-md);
   padding: 16px;
   overflow-x: auto;
@@ -700,14 +715,14 @@ body {
   background: none;
   border: none;
   padding: 0;
-  color: var(--text);
+  color: #E5E7EB;
 }
 
 /* Inline code */
 .assistant-body code {
-  background: rgba(20,184,166,0.08);
-  border: 1px solid rgba(20,184,166,0.14);
-  color: #5EEAD4;
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  color: #7C3AED;
   padding: 1px 6px;
   border-radius: var(--r-xs);
   font-family: var(--font-mono);
@@ -722,27 +737,28 @@ body {
   font-size: 13px;
   border-radius: var(--r-md);
   overflow: hidden;
-  border: 1px solid var(--border-md);
-  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(10px);
 }
-.assistant-body thead { background: rgba(20,184,166,0.08); }
+.assistant-body thead { background: rgba(139, 92, 246, 0.08); }
 .assistant-body th {
-  padding: 9px 14px;
+  padding: 10px 14px;
   text-align: left;
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.4px;
   text-transform: uppercase;
   color: var(--accent);
-  border-bottom: 1px solid var(--border-accent);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.2);
 }
 .assistant-body td {
-  padding: 9px 14px;
-  border-bottom: 1px solid var(--border);
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(60, 60, 100, 0.08);
   color: var(--text);
 }
 .assistant-body tr:last-child td { border-bottom: none; }
-.assistant-body tbody tr:hover td { background: rgba(255,255,255,0.03); }
+.assistant-body tbody tr:hover td { background: rgba(255,255,255,0.5); }
 
 /* Blockquotes */
 .assistant-body blockquote {
@@ -754,19 +770,21 @@ body {
 
 .assistant-body hr {
   border: none;
-  border-top: 1px solid var(--border-md);
+  border-top: 1px solid rgba(60,60,100,0.1);
   margin: 16px 0;
 }
 
 /* ── Mermaid ──────────────────────────────────────────── */
 .mermaid-wrap {
-  background: rgba(255,255,255,0.02);
-  border: 1px solid var(--border-md);
+  background: rgba(255,255,255,0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.7);
   border-radius: var(--r-md);
   padding: 20px;
   margin: 14px 0;
   overflow-x: auto;
   text-align: center;
+  box-shadow: 0 2px 8px rgba(60,60,100,0.05);
 }
 .mermaid-wrap svg { max-width: 100%; height: auto; }
 
@@ -949,18 +967,18 @@ body {
   display: flex;
   align-items: flex-end;
   gap: 10px;
-  background: var(--surface2);
+  background: rgba(255,255,255,0.75);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--border-md);
+  border: 1px solid rgba(255,255,255,0.6);
   border-radius: var(--r-2xl);
-  padding: 14px 16px 14px 20px;
+  padding: 16px 18px 16px 22px;
   transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 2px 12px rgba(60,60,100,0.08);
 }
 .input-container:focus-within {
   border-color: var(--border-accent);
-  box-shadow: 0 0 0 3px var(--accent-glow), var(--shadow-md);
+  box-shadow: 0 0 0 3px var(--accent-glow), 0 4px 16px rgba(60,60,100,0.12);
 }
 
 .chat-input {
@@ -981,7 +999,7 @@ body {
 .send-btn {
   width: 36px; height: 36px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #14B8A6 0%, #0891B2 100%);
+  background: linear-gradient(135deg, #A78BFA 0%, #818CF8 50%, #60A5FA 100%);
   border: none;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
@@ -990,14 +1008,14 @@ body {
   font-weight: 600;
   flex-shrink: 0;
   transition: all var(--dur-fast) var(--spring);
-  box-shadow: 0 4px 12px rgba(20,184,166,0.35);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.35);
 }
 .send-btn:hover:not(:disabled) {
   transform: scale(1.05);
-  box-shadow: 0 6px 16px rgba(20,184,166,0.5);
+  box-shadow: 0 6px 16px rgba(139, 92, 246, 0.5);
 }
 .send-btn:active:not(:disabled) { transform: scale(0.94); }
-.send-btn:disabled { opacity: 0.3; cursor: not-allowed; box-shadow: none; }
+.send-btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
 
 .input-footer {
   display: flex;
@@ -1079,12 +1097,13 @@ body {
 }
 
 .settings-card {
-  background: rgba(255,255,255,0.03);
+  background: rgba(255,255,255,0.55);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border-md);
+  border: 1px solid rgba(255,255,255,0.6);
   border-radius: var(--r-md);
   overflow: hidden;
+  box-shadow: 0 2px 8px rgba(60,60,100,0.05);
 }
 
 .settings-card-body { padding: 18px 20px; }
@@ -1183,22 +1202,27 @@ body {
 
 .mcp-tile {
   padding: 12px; border-radius: var(--r-sm);
-  border: 1px solid var(--border-md);
-  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.5);
+  background: rgba(255,255,255,0.5);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   cursor: pointer; transition: all var(--dur-fast);
   display: flex; gap: 10px; align-items: flex-start;
 }
-.mcp-tile:hover { border-color: var(--border-accent); background: rgba(20,184,166,0.04); }
-.mcp-tile.sel { border-color: var(--accent); background: var(--accent-soft); }
-.mcp-tile.on { border-color: rgba(52,211,153,0.35); }
+.mcp-tile:hover {
+  border-color: rgba(139, 92, 246, 0.3);
+  background: rgba(255,255,255,0.75);
+  box-shadow: 0 2px 8px rgba(60,60,100,0.08);
+}
+.mcp-tile.sel { border-color: var(--accent); background: rgba(139, 92, 246, 0.08); }
+.mcp-tile.on { border-color: rgba(16, 185, 129, 0.45); }
 
 .mcp-tile-logo {
   width: 28px; height: 28px;
   object-fit: contain; border-radius: 4px; flex-shrink: 0;
-  background: rgba(255,255,255,0.85);
+  background: white;
   padding: 2px;
+  box-shadow: 0 1px 3px rgba(60,60,100,0.1);
 }
 .mcp-tile-emoji { font-size: 22px; flex-shrink: 0; line-height: 1; margin-top: 1px; }
 
@@ -1209,7 +1233,7 @@ body {
 .active-dot {
   width: 6px; height: 6px; border-radius: 50%;
   background: var(--success); flex-shrink: 0;
-  box-shadow: 0 0 6px rgba(52,211,153,0.5);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
 }
 
 .mcp-tile-desc {
@@ -1220,10 +1244,10 @@ body {
 /* Detail panel */
 .mkt-right {
   display: flex; flex-direction: column; overflow: hidden;
-  background: rgba(255,255,255,0.03);
+  background: rgba(255,255,255,0.55);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border-md);
+  border: 1px solid rgba(255,255,255,0.6);
   border-radius: var(--r-md);
 }
 
@@ -1485,20 +1509,21 @@ body {
   display: flex; align-items: center; gap: 7px;
   padding: 5px 12px;
   border-radius: var(--r-full);
-  background: var(--surface2);
+  background: rgba(255,255,255,0.7);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--border-md);
+  border: 1px solid rgba(255,255,255,0.7);
   color: var(--text2);
   font-family: var(--font);
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
   transition: all var(--dur-fast);
+  box-shadow: 0 1px 3px rgba(60,60,100,0.06);
 }
 .usage-meter-pill:hover {
-  background: var(--surface3);
-  border-color: var(--border-accent);
+  background: rgba(255,255,255,0.9);
+  box-shadow: 0 2px 6px rgba(60,60,100,0.1);
 }
 
 .usage-dot {
@@ -1772,10 +1797,10 @@ body {
   align-items: center;
   gap: 7px;
   padding: 5px 12px 5px 10px;
-  background: var(--surface2);
+  background: rgba(255,255,255,0.7);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--border-md);
+  border: 1px solid rgba(255,255,255,0.7);
   border-radius: var(--r-full);
   color: var(--text);
   font-family: var(--font);
@@ -1784,10 +1809,11 @@ body {
   cursor: pointer;
   transition: all var(--dur-fast);
   white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(60,60,100,0.06);
 }
 .model-dropdown-trigger:hover {
-  background: var(--surface3);
-  border-color: var(--border-accent);
+  background: rgba(255,255,255,0.9);
+  box-shadow: 0 2px 6px rgba(60,60,100,0.1);
 }
 
 .model-dot {
