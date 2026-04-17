@@ -26,30 +26,80 @@ function initMermaid(dark: boolean) {
 
 function MermaidDiagram({ code, dark }: { code: string; dark: boolean }) {
   const ref = useRef<HTMLDivElement>(null)
-  const [err, setErr] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const [rendering, setRendering] = useState(true)
   const id = useRef(`mm${Math.random().toString(36).slice(2, 9)}`)
 
   useEffect(() => {
-    initMermaid(dark); setErr(false)
-    mermaid.render(id.current, code.trim())
-      .then(({ svg }) => { if (ref.current) ref.current.innerHTML = svg })
-      .catch(() => setErr(true))
+    const trimmed = code.trim()
+
+    // Guard 1: empty diagram
+    if (!trimmed) {
+      setErr('Diagram was empty — the AI started a mermaid block but didn\'t put any content in it.')
+      setRendering(false)
+      return
+    }
+
+    // Guard 2: very short / obviously malformed (less than a valid 'graph LR' header)
+    if (trimmed.length < 8) {
+      setErr(`Diagram too short to render: "${trimmed}"`)
+      setRendering(false)
+      return
+    }
+
+    initMermaid(dark)
+    setErr(null)
+    setRendering(true)
+
+    mermaid.render(id.current, trimmed)
+      .then(({ svg }) => {
+        if (ref.current) ref.current.innerHTML = svg
+        setRendering(false)
+      })
+      .catch((e: any) => {
+        // Extract a useful error line — mermaid errors are verbose
+        const msg = e?.message ?? String(e)
+        const firstLine = msg.split('\n').find((l: string) => l.trim().length > 0) ?? msg
+        setErr(firstLine.slice(0, 200))
+        setRendering(false)
+      })
   }, [code, dark])
 
   if (err) return (
     <div className="mermaid-error">
-      ⚠ Diagram render failed
-      <pre style={{ marginTop: 6, fontSize: 11, opacity: 0.7, whiteSpace: 'pre-wrap' }}>{code}</pre>
+      <div className="mermaid-error-title">⚠ Couldn't render diagram</div>
+      <div className="mermaid-error-msg">{err}</div>
+      <details className="mermaid-error-source">
+        <summary>Show source</summary>
+        <pre>{code || '(empty)'}</pre>
+      </details>
     </div>
   )
+
+  if (rendering) {
+    return <div className="mermaid-loading">Drawing diagram…</div>
+  }
+
   return <div className="mermaid-wrap" ref={ref} />
 }
 
+// Tries to normalise the many ways models emit mermaid:
+// - bare "mermaid\ngraph LR..." without fences
+// - using "diagram" instead of "graph"
+// - accidental 4-backtick wraps
 function fixMermaid(content: string): string {
-  return content.replace(
-    /(?:^|\n)(mermaid\n(?:graph|flowchart|sequenceDiagram|pie|gantt|erDiagram|classDiagram|stateDiagram)[^\n]*(?:\n(?!```).*)*)/gm,
-    (_, block) => `\n\`\`\`mermaid\n${block.replace(/^mermaid\n/, '')}\`\`\``
+  let fixed = content
+
+  // Normalise 4+ backticks to 3
+  fixed = fixed.replace(/````+/g, '```')
+
+  // Catch unfenced mermaid blocks starting with a recognised diagram keyword
+  fixed = fixed.replace(
+    /(?:^|\n)(mermaid\n(?:graph|flowchart|sequenceDiagram|pie|gantt|erDiagram|classDiagram|stateDiagram|journey|gitGraph|mindmap|timeline|quadrantChart)[^\n]*(?:\n(?!```).*)*)/gm,
+    (_, block) => `\n\`\`\`mermaid\n${block.replace(/^mermaid\n/, '')}\n\`\`\``
   )
+
+  return fixed
 }
 
 function timeAgo(dateStr: string): string {

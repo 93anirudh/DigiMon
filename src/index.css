@@ -701,6 +701,59 @@ html, body, #root {
   color: var(--danger);
 }
 
+.mermaid-error-title {
+  font-weight: 600;
+  font-size: 12.5px;
+  margin-bottom: 4px;
+}
+
+.mermaid-error-msg {
+  color: var(--text2);
+  font-size: 11.5px;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.mermaid-error-source {
+  font-size: 11px;
+}
+
+.mermaid-error-source summary {
+  cursor: pointer;
+  color: var(--text3);
+  padding: 2px 0;
+  user-select: none;
+}
+
+.mermaid-error-source summary:hover {
+  color: var(--text2);
+}
+
+.mermaid-error-source pre {
+  margin-top: 6px;
+  padding: 8px;
+  background: var(--surface2);
+  border-radius: var(--r-sm);
+  color: var(--text2);
+  font-size: 10.5px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.mermaid-loading {
+  background: var(--surface);
+  border: 1px dashed var(--border-md);
+  border-radius: var(--r-md);
+  padding: 24px;
+  margin: 14px 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text3);
+  font-style: italic;
+}
+
 /* ── Action Bar (below message) ──────────────────────── */
 .message-actions {
   display: flex;
