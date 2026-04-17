@@ -16,10 +16,17 @@ function initMermaid(dark: boolean) {
     startOnLoad: false, theme, securityLevel: 'loose',
     fontFamily: 'Inter, system-ui, sans-serif', fontSize: 13,
     themeVariables: dark ? {
-      primaryColor: '#F16A50', primaryTextColor: '#EDEDEF',
-      primaryBorderColor: '#3A3A4A', lineColor: '#5C5C6E',
-      sectionBkgColor: '#18181F', altSectionBkgColor: '#111116',
-      gridColor: '#3A3A4A', background: '#111116',
+      primaryColor: '#14B8A6',
+      primaryTextColor: '#ECEEEB',
+      primaryBorderColor: '#0FA599',
+      lineColor: '#4C5F5B',
+      sectionBkgColor: '#0F2926',
+      altSectionBkgColor: '#0A1F1C',
+      gridColor: '#1A3935',
+      background: 'transparent',
+      mainBkg: '#0F2926',
+      secondBkg: '#14302C',
+      tertiaryColor: '#1A3935',
     } : undefined,
   })
 }
