@@ -1,3 +1,71 @@
 {
-  "servers": []
+  "servers": [
+    {
+      "id": "google-workspace",
+      "name": "Google Workspace",
+      "description": "The most useful integration for a CA firm. Search emails, read Drive files, edit a shared Sheet, schedule client calls — DigiMon can touch all of it through your Google account.",
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "workspace-mcp"
+      ],
+      "envKeys": [
+        "GOOGLE_OAUTH_CLIENT_ID",
+        "GOOGLE_OAUTH_CLIENT_SECRET"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "fetch",
+      "name": "Web Reader",
+      "description": "Pull the latest CBIC circular, read an ICAI notification, check an MCA update, or read a client's website. DigiMon fetches the page and summarises it for you.",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-fetch"
+      ],
+      "envKeys": [],
+      "enabled": true
+    },
+    {
+      "id": "pdf-reader",
+      "name": "PDF Reader",
+      "description": "Drop in an ITR PDF, a notice from the Income Tax Department, an audit report, a Form 16. DigiMon extracts the text and can answer questions about it.",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "pdf-reader-mcp"
+      ],
+      "envKeys": [],
+      "enabled": true
+    },
+    {
+      "id": "excel-csv",
+      "name": "Excel & CSV",
+      "description": "Point DigiMon at a Tally export, a GST reconciliation sheet, or any .xlsx / .csv file. It will read the data and answer questions about it.",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "excel-mcp-server"
+      ],
+      "envKeys": [],
+      "enabled": true
+    },
+    {
+      "id": "memory",
+      "name": "Long-Term Memory",
+      "description": "Without this, each new chat starts blank. With this, DigiMon can remember your client list, firm name, recurring filings, preferences — anything you ask it to keep in mind. Say \"remember that...\" and it sticks. Say \"what do you remember about X\" to recall.",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ],
+      "envKeys": [],
+      "enabled": true
+    }
+  ]
 }
