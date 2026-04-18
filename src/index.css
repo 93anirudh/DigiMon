@@ -29,7 +29,7 @@
   --border:          rgba(255, 255, 255, 0.45);
   --border-md:       rgba(255, 255, 255, 0.6);
   --border-strong:   rgba(120, 120, 150, 0.2);
-  --border-accent:   rgba(139, 92, 246, 0.35);
+  --border-accent:   rgba(5, 150, 105, 0.35);
 
   /* Text — dark for contrast on light glass */
   --text:            #1A1A2E;
@@ -37,19 +37,18 @@
   --text3:           #7A7A95;
   --text4:           #AAABC0;
 
-  /* Primary accent — purple gradient (Aetheris-style).
-     We'll reintroduce teal for DigiMon identity in secondary places. */
-  --accent:          #8B5CF6;
-  --accent-2:        #7C3AED;
-  --accent-soft:     rgba(139, 92, 246, 0.10);
-  --accent-glow:     rgba(139, 92, 246, 0.25);
+  /* Primary accent — dark emerald green (mood: grounded, professional, finance-friendly) */
+  --accent:          #059669;
+  --accent-2:        #047857;
+  --accent-soft:     rgba(5, 150, 105, 0.10);
+  --accent-glow:     rgba(5, 150, 105, 0.25);
 
   /* Secondary accent — teal (for success, usage meter, small highlights) */
   --accent-warm:     #14B8A6;
   --accent-warm-soft: rgba(20, 184, 166, 0.12);
 
-  /* User bubble — purple→blue gradient, Aetheris exact */
-  --user-bg:         linear-gradient(135deg, #A78BFA 0%, #818CF8 50%, #60A5FA 100%);
+  /* User bubble — dark green gradient */
+  --user-bg:         linear-gradient(135deg, #10B981 0%, #059669 50%, #047857 100%);
   --user-text:       #FFFFFF;
 
   /* Semantic */
@@ -437,13 +436,13 @@ body {
   width: 96px; height: 96px;
   border-radius: 50%;
   background: radial-gradient(circle at 35% 30%,
-    #FFFFFF 0%, #FFE4E6 12%, #FDA4AF 30%, #F472B6 55%, #A78BFA 85%);
+    #FFFFFF 0%, #D1FAE5 12%, #6EE7B7 30%, #10B981 55%, #047857 85%);
   display: flex; align-items: center; justify-content: center;
   font-size: 0;
   margin-bottom: 28px;
   box-shadow:
-    0 0 60px rgba(244,114,182,0.4),
-    0 0 120px rgba(168,85,247,0.25),
+    0 0 60px rgba(16, 185, 129, 0.4),
+    0 0 120px rgba(5, 150, 105, 0.25),
     inset 0 2px 8px rgba(255,255,255,0.6);
   position: relative;
   animation: float 6s ease-in-out infinite;
@@ -595,7 +594,7 @@ body {
   font-size: 13.5px;
   line-height: 1.5;
   font-weight: 500;
-  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.28);
+  box-shadow: 0 4px 16px rgba(5, 150, 105, 0.28);
   position: relative;
 }
 
@@ -607,8 +606,8 @@ body {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #8B5CF6;
-  box-shadow: 0 0 6px rgba(139, 92, 246, 0.5);
+  background: #059669;
+  box-shadow: 0 0 6px rgba(5, 150, 105, 0.5);
 }
 
 /* Assistant message */
@@ -628,12 +627,12 @@ body {
   width: 22px; height: 22px;
   border-radius: 50%;
   background: radial-gradient(circle at 30% 30%,
-    #FFD1DC 0%, #F8B4C8 20%, #E879F9 45%, #A78BFA 75%, #7C3AED 100%);
+    #A7F3D0 0%, #6EE7B7 20%, #10B981 45%, #059669 75%, #064E3B 100%);
   display: flex; align-items: center; justify-content: center;
   font-size: 0;
   flex-shrink: 0;
   box-shadow:
-    0 0 10px rgba(168,85,247,0.3),
+    0 0 10px rgba(5, 150, 105, 0.3),
     inset 0 1px 2px rgba(255,255,255,0.5);
   position: relative;
 }
@@ -720,9 +719,9 @@ body {
 
 /* Inline code */
 .assistant-body code {
-  background: rgba(139, 92, 246, 0.12);
-  border: 1px solid rgba(139, 92, 246, 0.2);
-  color: #7C3AED;
+  background: rgba(5, 150, 105, 0.10);
+  border: 1px solid rgba(5, 150, 105, 0.2);
+  color: #047857;
   padding: 1px 6px;
   border-radius: var(--r-xs);
   font-family: var(--font-mono);
@@ -741,7 +740,7 @@ body {
   background: rgba(255,255,255,0.7);
   backdrop-filter: blur(10px);
 }
-.assistant-body thead { background: rgba(139, 92, 246, 0.08); }
+.assistant-body thead { background: rgba(5, 150, 105, 0.08); }
 .assistant-body th {
   padding: 10px 14px;
   text-align: left;
@@ -750,7 +749,7 @@ body {
   letter-spacing: 0.4px;
   text-transform: uppercase;
   color: var(--accent);
-  border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+  border-bottom: 1px solid rgba(5, 150, 105, 0.2);
 }
 .assistant-body td {
   padding: 10px 14px;
@@ -999,7 +998,7 @@ body {
 .send-btn {
   width: 36px; height: 36px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #A78BFA 0%, #818CF8 50%, #60A5FA 100%);
+  background: linear-gradient(135deg, #10B981 0%, #059669 50%, #047857 100%);
   border: none;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
@@ -1008,11 +1007,11 @@ body {
   font-weight: 600;
   flex-shrink: 0;
   transition: all var(--dur-fast) var(--spring);
-  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.35);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35);
 }
 .send-btn:hover:not(:disabled) {
   transform: scale(1.05);
-  box-shadow: 0 6px 16px rgba(139, 92, 246, 0.5);
+  box-shadow: 0 6px 16px rgba(5, 150, 105, 0.5);
 }
 .send-btn:active:not(:disabled) { transform: scale(0.94); }
 .send-btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
@@ -1210,11 +1209,11 @@ body {
   display: flex; gap: 10px; align-items: flex-start;
 }
 .mcp-tile:hover {
-  border-color: rgba(139, 92, 246, 0.3);
+  border-color: rgba(5, 150, 105, 0.3);
   background: rgba(255,255,255,0.75);
   box-shadow: 0 2px 8px rgba(60,60,100,0.08);
 }
-.mcp-tile.sel { border-color: var(--accent); background: rgba(139, 92, 246, 0.08); }
+.mcp-tile.sel { border-color: var(--accent); background: rgba(5, 150, 105, 0.08); }
 .mcp-tile.on { border-color: rgba(16, 185, 129, 0.45); }
 
 .mcp-tile-logo {

@@ -70,9 +70,6 @@ export function Sidebar({
             <div className="logo-name">Practice OS</div>
           </div>
           <div className="header-actions">
-            <button className="icon-btn" onClick={onToggleTheme} title={dark ? 'Light mode' : 'Dark mode'}>
-              {dark ? '○' : '●'}
-            </button>
             <button className="icon-btn" onClick={onNewChat} title="New chat (Ctrl+N)">
               ✎
             </button>
