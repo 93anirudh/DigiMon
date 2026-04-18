@@ -62,10 +62,13 @@ Format: markdown tables for structured data. For diagrams/flowcharts, use mermai
 
 \`\`\`mermaid
 graph TD
-  A --> B
+  A["Month End"] --> B["Gather Data"]
 \`\`\`
 
-NEVER use single backticks for mermaid. NEVER put mermaid inline. ALWAYS triple backticks on their own lines.
+Mermaid rules (critical):
+- Always TRIPLE backticks, never single.
+- Use PLAIN double quotes " inside node labels — NEVER backslash-escaped \\" or single quotes \\'.
+- Keep node labels simple. If you need punctuation, wrap in double quotes.
 
 Tight, no fluff.
 

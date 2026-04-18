@@ -36,18 +36,29 @@ function MermaidDiagram({ code, dark }: { code: string; dark: boolean }) {
   const id = useRef(`mm${Math.random().toString(36).slice(2, 9)}`)
 
   useEffect(() => {
-    const trimmed = code.trim()
+    // Sanitize common AI output mistakes before handing to mermaid parser:
+    // - \" → "     (JSON-style escapes models sometimes emit)
+    // - \' → '
+    // - \\n → \n   (double-escaped newlines)
+    // - curly quotes → straight quotes (occasional smart-quote contamination)
+    const sanitized = code
+      .trim()
+      .replace(/\\"/g, '"')
+      .replace(/\\'/g, "'")
+      .replace(/\\\\n/g, '\n')
+      .replace(/[\u201C\u201D]/g, '"')
+      .replace(/[\u2018\u2019]/g, "'")
 
     // Guard 1: empty diagram
-    if (!trimmed) {
+    if (!sanitized) {
       setErr('Diagram was empty — the AI started a mermaid block but didn\'t put any content in it.')
       setRendering(false)
       return
     }
 
-    // Guard 2: very short / obviously malformed (less than a valid 'graph LR' header)
-    if (trimmed.length < 8) {
-      setErr(`Diagram too short to render: "${trimmed}"`)
+    // Guard 2: very short / obviously malformed
+    if (sanitized.length < 8) {
+      setErr(`Diagram too short to render: "${sanitized}"`)
       setRendering(false)
       return
     }
@@ -56,13 +67,12 @@ function MermaidDiagram({ code, dark }: { code: string; dark: boolean }) {
     setErr(null)
     setRendering(true)
 
-    mermaid.render(id.current, trimmed)
+    mermaid.render(id.current, sanitized)
       .then(({ svg }) => {
         if (ref.current) ref.current.innerHTML = svg
         setRendering(false)
       })
       .catch((e: any) => {
-        // Extract a useful error line — mermaid errors are verbose
         const msg = e?.message ?? String(e)
         const firstLine = msg.split('\n').find((l: string) => l.trim().length > 0) ?? msg
         setErr(firstLine.slice(0, 200))
