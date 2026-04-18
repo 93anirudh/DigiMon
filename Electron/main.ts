@@ -30,29 +30,47 @@ const MCP_CONFIG_PATH = app.isPackaged
 
 // ── MCP keyword trigger map ───────────────────────────
 const MCP_TRIGGER_MAP: Record<string, string> = {
-  'file': 'filesystem',
-  'folder': 'filesystem',
-  'directory': 'filesystem',
+  // Google Workspace
   'gmail': 'google-workspace',
+  'email': 'google-workspace',
+  'inbox': 'google-workspace',
   'google drive': 'google-workspace',
   'gdrive': 'google-workspace',
   'google doc': 'google-workspace',
   'google sheet': 'google-workspace',
-  'browser': 'puppeteer',
-  'screenshot': 'puppeteer',
-  'navigate to': 'puppeteer',
-  'website': 'puppeteer',
-  'notion': 'notion',
-  'airtable': 'airtable',
-  'pdf': 'pdf-reader',
+  'google calendar': 'google-workspace',
+  'workspace': 'google-workspace',
+
+  // Excel / CSV
   'excel': 'excel-csv',
   'xlsx': 'excel-csv',
+  'xls': 'excel-csv',
+  'csv': 'excel-csv',
   'spreadsheet': 'excel-csv',
-  'ocr': 'ocr',
-  'scanned': 'ocr',
-  'github': 'github',
-  'postgresql': 'postgres',
-  'postgres': 'postgres',
+  'tally export': 'excel-csv',
+
+  // PDF
+  'pdf': 'pdf-reader',
+  '.pdf': 'pdf-reader',
+
+  // Web Reader
+  'http://': 'fetch',
+  'https://': 'fetch',
+  'webpage': 'fetch',
+  'website': 'fetch',
+  'url': 'fetch',
+  'cbic.gov.in': 'fetch',
+  'mca.gov.in': 'fetch',
+  'incometax.gov.in': 'fetch',
+
+  // Memory
+  'remember': 'memory',
+  'recall': 'memory',
+  'forget': 'memory',
+  'what do you remember': 'memory',
+  'do you remember': 'memory',
+  'store this': 'memory',
+  'note that': 'memory',
 }
 
 function detectMcpServerId(userMessage: string): string | null {

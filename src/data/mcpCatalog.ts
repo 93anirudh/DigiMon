@@ -24,6 +24,24 @@ export interface McpCatalogEntry {
 
 export const MCP_CATALOG: McpCatalogEntry[] = [
   {
+    id: 'memory',
+    name: 'Long-Term Memory',
+    tagline: 'Remembers things you tell it to, across every chat.',
+    description: 'Without this, each new chat starts blank. With this, DigiMon can remember your client list, firm name, recurring filings, preferences — anything you ask it to keep in mind. Say "remember that..." and it sticks. Say "what do you remember about X" to recall.',
+    example: 'Try: "Remember that Mehta & Sons is my biggest client — they file GSTR-3B monthly and GSTR-1 quarterly, due dates are the 11th and 13th."',
+    category: 'AI Enhancement',
+    icon: '🧠',
+    logoUrl: 'https://img.icons8.com/fluency/96/brain.png',
+    command: 'npx',
+    args: ['-y', '@modelcontextprotocol/server-memory'],
+    envVars: [],
+    setupSteps: [
+      'No setup needed — just click Connect.',
+      'Memory persists across all your chats, stored locally on your machine.',
+    ],
+    docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/memory',
+  },
+  {
     id: 'google-workspace',
     name: 'Google Workspace',
     tagline: 'Gmail, Drive, Docs, Sheets, and Calendar — all in one connection.',
@@ -113,6 +131,7 @@ export const MCP_CATALOG: McpCatalogEntry[] = [
 
 export const CATEGORIES = [
   { id: 'all',            label: 'All',            icon: '✦' },
+  { id: 'AI Enhancement', label: 'AI Tools',       icon: '🧠' },
   { id: 'Productivity',   label: 'Productivity',   icon: '📋' },
   { id: 'Local Tools',    label: 'Local Files',    icon: '📁' },
   { id: 'Web & Search',   label: 'Web',            icon: '🌐' },

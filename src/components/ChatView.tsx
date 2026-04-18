@@ -90,15 +90,25 @@ function MermaidDiagram({ code, dark }: { code: string; dark: boolean }) {
 
 // Tries to normalise the many ways models emit mermaid:
 // - bare "mermaid\ngraph LR..." without fences
+// - single-backtick wrapped `mermaid ...` blocks (common Gemini pattern)
+// - accidental 4+ backtick wraps
 // - using "diagram" instead of "graph"
-// - accidental 4-backtick wraps
 function fixMermaid(content: string): string {
   let fixed = content
+
+  // Catch SINGLE-backtick mermaid blocks: `mermaid\n...\n`
+  // (Gemini often does this instead of triple backticks.)
+  // We look for a lone backtick followed by "mermaid\n" and grab everything
+  // until the closing lone backtick.
+  fixed = fixed.replace(
+    /(^|\n)`mermaid\n([\s\S]+?)\n`(?=\s|$)/g,
+    (_, lead, body) => `${lead}\`\`\`mermaid\n${body}\n\`\`\``
+  )
 
   // Normalise 4+ backticks to 3
   fixed = fixed.replace(/````+/g, '```')
 
-  // Catch unfenced mermaid blocks starting with a recognised diagram keyword
+  // Catch fully-unfenced mermaid blocks starting with a recognised diagram keyword
   fixed = fixed.replace(
     /(?:^|\n)(mermaid\n(?:graph|flowchart|sequenceDiagram|pie|gantt|erDiagram|classDiagram|stateDiagram|journey|gitGraph|mindmap|timeline|quadrantChart)[^\n]*(?:\n(?!```).*)*)/gm,
     (_, block) => `\n\`\`\`mermaid\n${block.replace(/^mermaid\n/, '')}\n\`\`\``
