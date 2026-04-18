@@ -51,6 +51,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onApprovalRequired: (cb: (data: { toolName: string; toolArgs: any }) => void) =>
     ipcRenderer.on('tool:approval-required', (_e, data) => cb(data)),
 
+  // ── Abort run ────────────────────────────────────────
+  abortChat: () => ipcRenderer.invoke('chat:abort'),
+
   // ── LLM Model ─────────────────────────────────────────
   setModel: (model: string) => ipcRenderer.invoke('llm:setModel', model),
   getModel: () => ipcRenderer.invoke('llm:getModel'),

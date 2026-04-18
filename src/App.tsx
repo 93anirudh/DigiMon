@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback } from 'react'
-import { useTheme } from './hooks/useTheme'
 import { Sidebar } from './components/Sidebar'
 import { ChatView } from './components/ChatView'
 import { SettingsView } from './components/SettingsView'
@@ -11,7 +10,6 @@ interface Chat { id: number; title: string; created_at: string }
 interface ApprovalRequest { toolName: string; toolArgs: Record<string, any> }
 
 export default function App() {
-  const { dark, toggle } = useTheme()
   const [chats, setChats] = useState<Chat[]>([])
   const [activeChatId, setActiveChatId] = useState<number | null>(null)
   const [view, setView] = useState<'chat' | 'settings'>('chat')
@@ -116,10 +114,9 @@ export default function App() {
         currentView={view}
         onSelectChat={id => { setActiveChatId(id); setView('chat') }}
         onNewChat={handleNewChat}
+        onGoHome={() => { setActiveChatId(null); setView('chat') }}
         onDeleteChat={handleDeleteChat}
         onOpenSettings={() => setView('settings')}
-        dark={dark}
-        onToggleTheme={toggle}
       />
 
       <div className="main-content">
@@ -130,7 +127,7 @@ export default function App() {
             chatId={activeChatId}
             chatTitle={activeChat.title}
             activeModel={activeModel}
-            dark={dark}
+            dark={true}
             onSwitchModel={handleSwitchModel}
           />
         ) : (

@@ -7,6 +7,7 @@ import {
   getActiveModel, setActiveModel, generateChatTitle,
   humanizeError, isQuotaError,
   MODEL_CHAIN,
+  abortCurrentRun, resetAbortFlag,
   type GeminiModel
 } from './llmService'
 import { resolveApproval } from './approvalGate'
@@ -203,6 +204,7 @@ app.whenReady().then(async () => {
     }
 
     try {
+      resetAbortFlag()
       const fullResponse = await runAgentLoopWithFallback(
         apiKey, formatHistory(history), win,
         (chunk) => event.sender.send('chat:chunk', chunk),
@@ -275,6 +277,13 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('tool:approve', (_e, approved: boolean) => {
     resolveApproval(approved); return true
+  })
+
+  // ── Abort current run ────────────────────────────────
+  ipcMain.handle('chat:abort', () => {
+    abortCurrentRun()
+    console.log('[main] User requested abort')
+    return true
   })
 
   // ── LLM Model selection (no more providers; just Gemini model choice) ────

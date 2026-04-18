@@ -203,6 +203,14 @@ export interface StepEvent {
   durationMs?: number
 }
 
+// ── Abort support ──────────────────────────────────────
+// A single module-level flag that the agent loop checks between iterations.
+// main.ts flips this via abortCurrentRun() when the user hits Stop.
+let abortFlag = false
+export function abortCurrentRun() { abortFlag = true }
+export function resetAbortFlag() { abortFlag = false }
+export function isAborted() { return abortFlag }
+
 async function invokeWithTimeout(model: any, messages: any[], timeoutMs = 45000): Promise<any> {
   return Promise.race([
     model.invoke(messages),
@@ -235,6 +243,19 @@ export async function runAgentLoop(
   }
 
   for (let i = 0; i < 5; i++) {
+    // Abort check at start of each iteration
+    if (isAborted()) {
+      console.log('[agent] Aborted by user before iteration', i + 1)
+      const partialText = currentMessages
+        .filter((m: any) => m._getType?.() === 'ai')
+        .map((m: any) => typeof m.content === 'string' ? m.content : '')
+        .filter(Boolean)
+        .pop() ?? ''
+      onStep({ type: 'done' })
+      onChunk(partialText || '_[Stopped]_')
+      return partialText || '_[Stopped]_'
+    }
+
     onStep({ type: 'thinking', iteration: i + 1 })
     console.log(`[agent] Iteration ${i + 1}: invoking ${usingModel}…`)
 
@@ -242,6 +263,15 @@ export async function runAgentLoop(
     const response = await invokeWithTimeout(model, currentMessages)
     const invokeMs = Date.now() - invokeStart
     currentMessages.push(response)
+
+    // Abort check immediately after model returns — don't start tool calls
+    if (isAborted()) {
+      console.log('[agent] Aborted by user after model response')
+      const text = typeof response.content === 'string' ? response.content : ''
+      onStep({ type: 'done' })
+      onChunk(text || '_[Stopped]_')
+      return text || '_[Stopped]_'
+    }
 
     const usage = extractTokenUsage(response)
     console.log(`[agent] Iter ${i + 1} done in ${invokeMs}ms | tokens in=${usage.inputTokens} out=${usage.outputTokens} total=${usage.totalTokens}`)

@@ -8,10 +8,9 @@ interface Props {
   currentView: 'chat' | 'settings'
   onSelectChat: (id: number) => void
   onNewChat: () => void
+  onGoHome: () => void
   onDeleteChat: (id: number) => void
   onOpenSettings: () => void
-  dark: boolean
-  onToggleTheme: () => void
 }
 
 function groupByDate(chats: Chat[]): { label: string; items: Chat[] }[] {
@@ -41,8 +40,8 @@ function groupByDate(chats: Chat[]): { label: string; items: Chat[] }[] {
 
 export function Sidebar({
   chats, activeChatId, currentView,
-  onSelectChat, onNewChat, onDeleteChat,
-  onOpenSettings, dark, onToggleTheme,
+  onSelectChat, onNewChat, onGoHome, onDeleteChat,
+  onOpenSettings,
 }: Props) {
   const [search, setSearch] = useState('')
 
@@ -90,6 +89,14 @@ export function Sidebar({
 
       {/* Body */}
       <div className="sidebar-body">
+        <button
+          className={`sidebar-nav-btn ${activeChatId === null && currentView === 'chat' ? 'active' : ''}`}
+          onClick={onGoHome}
+          title="Go to home screen"
+        >
+          <span className="nav-icon">⌂</span>
+          <span>Home</span>
+        </button>
         <button className="new-chat-btn" onClick={onNewChat}>
           <span>＋</span>
           <span>New conversation</span>

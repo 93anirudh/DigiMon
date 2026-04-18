@@ -32,6 +32,8 @@ declare global {
       approveToolCall: (approved: boolean) => Promise<boolean>
       onApprovalRequired: (cb: (data: { toolName: string; toolArgs: any }) => void) => void
 
+      abortChat: () => Promise<boolean>
+
       setModel: (model: string) => Promise<boolean>
       getModel: () => Promise<string>
       getModelChain: () => Promise<string[]>

@@ -279,8 +279,39 @@ export function ChatView({ chatId, chatTitle, activeModel, dark, onSwitchModel }
     await window.electronAPI.retryLast(chatId)
   }
 
+  const handleStop = async () => {
+    await window.electronAPI.abortChat()
+    // Backend will flush any partial response and fire 'done' — the
+    // onDone handler flips streaming off and reloads messages.
+  }
+
+  // Click the pencil on your last user message → pulls it into the input
+  // for editing, removes it from the list. Resubmitting is a fresh send.
+  const handleEditLastUser = (content: string) => {
+    if (streaming) return
+    setInput(content)
+    // Drop the last user msg (and its assistant reply if present) from local view.
+    // DB already has them — that's fine, they stay as history unless user resends.
+    setMessages(prev => {
+      const copy = [...prev]
+      // walk backwards: drop trailing assistant, then the user
+      if (copy[copy.length - 1]?.role === 'assistant') copy.pop()
+      if (copy[copy.length - 1]?.role === 'user') copy.pop()
+      return copy
+    })
+    setTimeout(() => {
+      textareaRef.current?.focus()
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto'
+        textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 140) + 'px'
+      }
+    }, 0)
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
+    if (e.key === 'Enter' && !e.shiftKey && !streaming) {
+      e.preventDefault(); sendMessage()
+    }
   }
 
   const mdComponents: any = {
@@ -312,9 +343,23 @@ export function ChatView({ chatId, chatTitle, activeModel, dark, onSwitchModel }
       <div className="messages-area">
         {messages.map((msg, idx) => {
           const isLast = idx === messages.length - 1
+          // Last user msg — either the very last, or second-last with an assistant reply after it
+          const isLastUser = msg.role === 'user' && (
+            isLast ||
+            (idx === messages.length - 2 && messages[messages.length - 1]?.role === 'assistant')
+          )
           if (msg.role === 'user') return (
             <div key={msg.id} className="message-group">
               <div className="message-user">
+                {isLastUser && !streaming && (
+                  <button
+                    className="user-edit-btn"
+                    onClick={() => handleEditLastUser(msg.content)}
+                    title="Edit and resend"
+                  >
+                    ✎
+                  </button>
+                )}
                 <div className="user-bubble">{msg.content}</div>
               </div>
             </div>
@@ -401,13 +446,23 @@ export function ChatView({ chatId, chatTitle, activeModel, dark, onSwitchModel }
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            disabled={streaming}
+            disabled={false}
             rows={1}
-            placeholder="Ask anything, or tell me to run something on your machine…"
+            placeholder={streaming ? "DigiMon is responding… type to queue next message" : "Ask anything, or tell me to run something on your machine…"}
           />
-          <button className="send-btn" onClick={sendMessage} disabled={streaming || !input.trim()}>
-            ↑
-          </button>
+          {streaming ? (
+            <button
+              className="stop-btn"
+              onClick={handleStop}
+              title="Stop generating"
+            >
+              <span className="stop-icon" />
+            </button>
+          ) : (
+            <button className="send-btn" onClick={sendMessage} disabled={!input.trim()}>
+              ↑
+            </button>
+          )}
         </div>
         <div className="input-footer">
           <kbd>Enter</kbd> to send

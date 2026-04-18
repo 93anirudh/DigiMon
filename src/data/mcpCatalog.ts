@@ -31,7 +31,7 @@ export const MCP_CATALOG: McpCatalogEntry[] = [
     example: 'Try: "Find all emails from Mehta & Sons this month about GST, and draft a reply summarising the next steps."',
     category: 'Productivity',
     icon: '📀',
-    logoUrl: 'https://lh3.googleusercontent.com/JQMBtQV_0sNnAOiJXBGCFl9MnblZ58OwKkFOGE28s8FmB3Mns6FnNbFcUAp4yGwMm0XQZZ-e0tktjm2qjEXb2Pg=s120',
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Google_Workspace_Logo.svg/512px-Google_Workspace_Logo.svg.png',
     command: 'uvx',
     args: ['workspace-mcp'],
     envVars: [
@@ -100,6 +100,7 @@ export const MCP_CATALOG: McpCatalogEntry[] = [
     example: 'Try: "Read https://www.cbic.gov.in/entities/gst-notifications and tell me anything new from this month."',
     category: 'Web & Search',
     icon: '🌐',
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e2/Globe_icon_2.svg/512px-Globe_icon_2.svg.png',
     command: 'npx',
     args: ['-y', '@modelcontextprotocol/server-fetch'],
     envVars: [],
