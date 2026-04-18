@@ -23,6 +23,13 @@ import {
   getStatus as getWhatsAppStatus,
   logout as logoutWhatsApp,
 } from './whatsappService'
+import {
+  startGoogleOAuth,
+  cancelGoogleOAuth,
+  getGoogleStatus,
+  clearGoogleTokens,
+  getValidAccessToken,
+} from './googleOAuth'
 
 const MCP_CONFIG_PATH = app.isPackaged
   ? path.join(process.resourcesPath, 'mcp_config.json')
@@ -30,6 +37,17 @@ const MCP_CONFIG_PATH = app.isPackaged
 
 // ── MCP keyword trigger map ───────────────────────────
 const MCP_TRIGGER_MAP: Record<string, string> = {
+  // Google Workspace (OAuth-based)
+  'gmail': 'google-workspace',
+  'email': 'google-workspace',
+  'inbox': 'google-workspace',
+  'google drive': 'google-workspace',
+  'gdrive': 'google-workspace',
+  'google doc': 'google-workspace',
+  'google sheet': 'google-workspace',
+  'google calendar': 'google-workspace',
+  'my drive': 'google-workspace',
+
   // Excel / CSV
   'excel': 'excel-csv',
   'xlsx': 'excel-csv',
@@ -302,6 +320,32 @@ app.whenReady().then(async () => {
   ipcMain.handle('chat:abort', () => {
     abortCurrentRun()
     console.log('[main] User requested abort')
+    return true
+  })
+
+  // ── Google OAuth ─────────────────────────────────────
+  ipcMain.handle('google:status', () => {
+    return getGoogleStatus()
+  })
+
+  ipcMain.handle('google:connect', async () => {
+    try {
+      const result = await startGoogleOAuth()
+      return { ok: true, email: result.email }
+    } catch (err: any) {
+      console.error('[main] Google OAuth failed:', err.message)
+      return { ok: false, error: err.message }
+    }
+  })
+
+  ipcMain.handle('google:disconnect', () => {
+    clearGoogleTokens()
+    console.log('[main] Google Workspace disconnected')
+    return true
+  })
+
+  ipcMain.handle('google:cancel', () => {
+    cancelGoogleOAuth()
     return true
   })
 

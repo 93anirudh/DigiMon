@@ -14,6 +14,7 @@ export interface McpCatalogEntry {
   category: string
   icon: string
   logoUrl?: string
+  requiresAuth?: boolean            // if true — shows OAuth Connect button instead of env var form
   command: string
   args: string[]
   envVars: McpEnvVar[]
@@ -23,6 +24,22 @@ export interface McpCatalogEntry {
 }
 
 export const MCP_CATALOG: McpCatalogEntry[] = [
+  {
+    id: 'google-workspace',
+    name: 'Google Workspace',
+    tagline: 'Gmail, Drive, Docs, Sheets, and Calendar — one click, no setup.',
+    description: 'Sign in with your Google account. DigiMon can then search emails, read Drive files, edit Sheets, and check Calendar — all through your account with full privacy.',
+    example: 'Try: "Find all emails from Mehta & Sons this month about GST and summarise the next steps."',
+    category: 'Productivity',
+    icon: '🟦',
+    logoUrl: 'https://img.icons8.com/color/96/google-logo.png',
+    requiresAuth: true,               // triggers Google OAuth flow in the UI
+    command: 'npx',
+    args: ['-y', '@modelcontextprotocol/server-gdrive'],
+    envVars: [],                      // no manual entry needed — OAuth handles it
+    setupSteps: ['Click Connect and sign in with your Google account.'],
+    docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/gdrive',
+  },
   {
     id: 'memory',
     name: 'Long-Term Memory',
@@ -95,8 +112,9 @@ export const MCP_CATALOG: McpCatalogEntry[] = [
 ]
 
 export const CATEGORIES = [
-  { id: 'all',            label: 'All',            icon: '✦' },
-  { id: 'AI Enhancement', label: 'AI Tools',       icon: '🧠' },
-  { id: 'Local Tools',    label: 'Local Files',    icon: '📁' },
-  { id: 'Web & Search',   label: 'Web',            icon: '🌐' },
+  { id: 'all',            label: 'All',           icon: '✦' },
+  { id: 'Productivity',   label: 'Productivity',  icon: '📋' },
+  { id: 'AI Enhancement', label: 'AI Tools',      icon: '🧠' },
+  { id: 'Local Tools',    label: 'Local Files',   icon: '📁' },
+  { id: 'Web & Search',   label: 'Web',           icon: '🌐' },
 ]

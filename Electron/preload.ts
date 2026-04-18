@@ -54,6 +54,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ── Abort run ────────────────────────────────────────
   abortChat: () => ipcRenderer.invoke('chat:abort'),
 
+  // ── Google OAuth ────────────────────────────────────
+  googleStatus:     () => ipcRenderer.invoke('google:status'),
+  googleConnect:    () => ipcRenderer.invoke('google:connect'),
+  googleDisconnect: () => ipcRenderer.invoke('google:disconnect'),
+  googleCancel:     () => ipcRenderer.invoke('google:cancel'),
+
   // ── LLM Model ─────────────────────────────────────────
   setModel: (model: string) => ipcRenderer.invoke('llm:setModel', model),
   getModel: () => ipcRenderer.invoke('llm:getModel'),

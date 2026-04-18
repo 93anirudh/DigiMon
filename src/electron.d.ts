@@ -34,6 +34,12 @@ declare global {
 
       abortChat: () => Promise<boolean>
 
+      // Google OAuth
+      googleStatus: () => Promise<{ connected: false } | { connected: true; email: string; expired: boolean }>
+      googleConnect: () => Promise<{ ok: true; email: string } | { ok: false; error: string }>
+      googleDisconnect: () => Promise<boolean>
+      googleCancel: () => Promise<boolean>
+
       setModel: (model: string) => Promise<boolean>
       getModel: () => Promise<string>
       getModelChain: () => Promise<string[]>
