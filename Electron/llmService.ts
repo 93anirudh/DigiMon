@@ -145,6 +145,27 @@ export function formatHistory(messages: { role: string; content: string }[]) {
   })
 }
 
+// Gemini + LangChain sometimes return response.content as an array of blocks
+// like [{type:'text', text:'...'}, {type:'text', text:'...'}]. We need to
+// concatenate the 'text' fields, not JSON.stringify the whole thing — doing
+// that wraps mermaid/code blocks in JSON escaping and breaks rendering.
+function extractContentText(content: any): string {
+  if (typeof content === 'string') return content
+  if (Array.isArray(content)) {
+    return content
+      .map((block: any) => {
+        if (typeof block === 'string') return block
+        if (block?.type === 'text' && typeof block.text === 'string') return block.text
+        if (typeof block?.text === 'string') return block.text  // fallback
+        return ''
+      })
+      .join('')
+  }
+  // Last resort — shouldn't normally hit this path
+  if (content?.text) return String(content.text)
+  return ''
+}
+
 export function isQuotaError(err: any): boolean {
   const msg = (err?.message ?? '').toLowerCase()
   return msg.includes('429') || msg.includes('quota') || msg.includes('rate limit') ||
@@ -192,7 +213,7 @@ Reply with ONLY the title. No quotes, no punctuation, no explanation.
 User: ${userMsg.slice(0, 150)}
 Assistant: ${assistantMsg.slice(0, 150)}`
   const response = await (model as any).invoke(prompt)
-  const text = typeof response.content === 'string' ? response.content : 'Untitled Chat'
+  const text = extractContentText(response.content) || 'Untitled Chat'
   return text.trim().slice(0, 40)
 }
 
@@ -276,7 +297,7 @@ export async function runAgentLoop(
     // Abort check immediately after model returns — don't start tool calls
     if (isAborted()) {
       console.log('[agent] Aborted by user after model response')
-      const text = typeof response.content === 'string' ? response.content : ''
+      const text = extractContentText(response.content)
       onStep({ type: 'done' })
       onChunk(text || '_[Stopped]_')
       return text || '_[Stopped]_'
@@ -306,9 +327,7 @@ export async function runAgentLoop(
     console.log(`[agent] Response received | tool_calls=${toolCalls.length}`)
 
     if (toolCalls.length === 0) {
-      const finalText = typeof response.content === 'string'
-        ? response.content
-        : JSON.stringify(response.content)
+      const finalText = extractContentText(response.content)
       onStep({ type: 'done' })
       onChunk(finalText)
       return finalText
