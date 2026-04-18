@@ -42,41 +42,6 @@ export const MCP_CATALOG: McpCatalogEntry[] = [
     docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/memory',
   },
   {
-    id: 'google-workspace',
-    name: 'Google Workspace',
-    tagline: 'Gmail, Drive, Docs, Sheets, and Calendar — all in one connection.',
-    description: 'The most useful integration for a CA firm. Search emails, read Drive files, edit a shared Sheet, schedule client calls — DigiMon can touch all of it through your Google account.',
-    example: 'Try: "Find all emails from Mehta & Sons this month about GST, and draft a reply summarising the next steps."',
-    category: 'Productivity',
-    icon: '📀',
-    logoUrl: 'https://img.icons8.com/color/96/google-logo.png',
-    command: 'uvx',
-    args: ['workspace-mcp'],
-    envVars: [
-      {
-        key: 'GOOGLE_OAUTH_CLIENT_ID',
-        label: 'Google OAuth Client ID',
-        hint: 'From Google Cloud Console → Credentials → OAuth 2.0 Client ID',
-        secret: false,
-      },
-      {
-        key: 'GOOGLE_OAUTH_CLIENT_SECRET',
-        label: 'Google OAuth Client Secret',
-        hint: 'From the same OAuth 2.0 Client ID page',
-        secret: true,
-      },
-    ],
-    setupSteps: [
-      'Go to console.cloud.google.com → create a new project (any name works).',
-      'Enable these APIs: Gmail, Drive, Docs, Sheets, Calendar.',
-      'APIs & Services → Credentials → Create OAuth 2.0 Client ID ("Desktop App").',
-      'Copy the Client ID and Client Secret into the fields below.',
-      'On first use a browser opens asking you to sign in — that\'s normal.',
-    ],
-    docsUrl: 'https://github.com/taylorwilsdon/google_workspace_mcp',
-    warning: 'Requires a Google Cloud project. All Google APIs stay within their free quota for normal CA-firm use.',
-  },
-  {
     id: 'excel-csv',
     name: 'Excel & CSV',
     tagline: 'Open, read, and analyse Excel and CSV files.',
@@ -132,7 +97,6 @@ export const MCP_CATALOG: McpCatalogEntry[] = [
 export const CATEGORIES = [
   { id: 'all',            label: 'All',            icon: '✦' },
   { id: 'AI Enhancement', label: 'AI Tools',       icon: '🧠' },
-  { id: 'Productivity',   label: 'Productivity',   icon: '📋' },
   { id: 'Local Tools',    label: 'Local Files',    icon: '📁' },
   { id: 'Web & Search',   label: 'Web',            icon: '🌐' },
 ]

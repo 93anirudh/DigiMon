@@ -30,17 +30,6 @@ const MCP_CONFIG_PATH = app.isPackaged
 
 // ── MCP keyword trigger map ───────────────────────────
 const MCP_TRIGGER_MAP: Record<string, string> = {
-  // Google Workspace
-  'gmail': 'google-workspace',
-  'email': 'google-workspace',
-  'inbox': 'google-workspace',
-  'google drive': 'google-workspace',
-  'gdrive': 'google-workspace',
-  'google doc': 'google-workspace',
-  'google sheet': 'google-workspace',
-  'google calendar': 'google-workspace',
-  'workspace': 'google-workspace',
-
   // Excel / CSV
   'excel': 'excel-csv',
   'xlsx': 'excel-csv',
@@ -243,17 +232,29 @@ app.whenReady().then(async () => {
       db.prepare('INSERT INTO messages (chat_id, role, content) VALUES (?, ?, ?)')
         .run(chatId, 'assistant', fullResponse)
 
-      const msgCount = (db.prepare(
-        'SELECT COUNT(*) as count FROM messages WHERE chat_id = ?'
-      ).get(chatId) as { count: number }).count
+      // Title the chat if it hasn't been titled yet (title is '…' on create).
+      // We look at the current title rather than msg count — safer if the user
+      // retried or the count was off.
+      const currentChat = db.prepare(
+        'SELECT title FROM chats WHERE id = ?'
+      ).get(chatId) as { title: string } | undefined
 
-      if (msgCount <= 2 && saveUserMessage) {
+      if (currentChat && (currentChat.title === '…' || currentChat.title === '' || !currentChat.title) && saveUserMessage) {
+        console.log(`[main] Generating title for chat ${chatId}…`)
         generateChatTitle(apiKey, userMessage, fullResponse)
           .then(title => {
-            db.prepare('UPDATE chats SET title = ? WHERE id = ?').run(title, chatId)
-            event.sender.send('chat:titled', { chatId, title })
+            const clean = title.replace(/["']/g, '').trim().slice(0, 40) || 'New chat'
+            db.prepare('UPDATE chats SET title = ? WHERE id = ?').run(clean, chatId)
+            event.sender.send('chat:titled', { chatId, title: clean })
+            console.log(`[main] Chat ${chatId} titled: "${clean}"`)
           })
-          .catch(() => {})
+          .catch(err => {
+            console.warn(`[main] Title generation failed for chat ${chatId}:`, err?.message)
+            // Fallback — use first 40 chars of user message
+            const fallback = userMessage.slice(0, 40).trim() || 'New chat'
+            db.prepare('UPDATE chats SET title = ? WHERE id = ?').run(fallback, chatId)
+            event.sender.send('chat:titled', { chatId, title: fallback })
+          })
       }
     } catch (err: any) {
       const model = getActiveModel()

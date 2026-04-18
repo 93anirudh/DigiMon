@@ -65,13 +65,8 @@ export function Sidebar({
       <div className="sidebar-header">
         <div className="logo-row">
           <div className="logo-mark">
-            <div className="logo-icon">P</div>
-            <div className="logo-name">Practice OS</div>
-          </div>
-          <div className="header-actions">
-            <button className="icon-btn" onClick={onNewChat} title="New chat (Ctrl+N)">
-              ✎
-            </button>
+            <div className="logo-icon">D</div>
+            <div className="logo-name">DigiMon</div>
           </div>
         </div>
         <div className="logo-sub">CA Intelligence Suite</div>

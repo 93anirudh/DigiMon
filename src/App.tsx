@@ -127,7 +127,6 @@ export default function App() {
             chatId={activeChatId}
             chatTitle={activeChat.title}
             activeModel={activeModel}
-            dark={true}
             onSwitchModel={handleSwitchModel}
           />
         ) : (

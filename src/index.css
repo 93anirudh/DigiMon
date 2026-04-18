@@ -2016,3 +2016,78 @@ body {
   border-color: var(--border-accent);
   transform: scale(1.1);
 }
+
+/* ── React Flow Diagram Renderer ─────────────────────── */
+.diagram-wrap {
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.7);
+  border-radius: var(--r-md);
+  margin: 14px 0;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(60,60,100,0.08);
+  width: 100%;
+  min-height: 260px;
+}
+
+.diagram-error {
+  background: var(--danger-soft);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+  margin: 10px 0;
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.diagram-error-title {
+  font-weight: 600;
+  font-size: 12.5px;
+  margin-bottom: 4px;
+}
+
+.diagram-error-msg {
+  color: var(--text2);
+  font-size: 11.5px;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.diagram-error-source summary {
+  cursor: pointer;
+  color: var(--text3);
+  padding: 2px 0;
+  user-select: none;
+  font-size: 11px;
+}
+
+.diagram-error-source summary:hover { color: var(--text2); }
+
+.diagram-error-source pre {
+  margin-top: 6px;
+  padding: 8px;
+  background: rgba(255,255,255,0.7);
+  border-radius: var(--r-sm);
+  color: var(--text2);
+  font-size: 10.5px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+/* React Flow overrides — align with Aetheris palette */
+.react-flow__attribution { display: none !important; }
+.react-flow__edge-path { stroke: var(--text3); stroke-width: 1.5; }
+.react-flow__edge-text { fill: var(--text2); font-family: var(--font); font-size: 11px; font-weight: 500; }
+.react-flow__edge-textbg { fill: rgba(255,255,255,0.9); }
+.react-flow__controls-button {
+  background: rgba(255,255,255,0.9) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text2) !important;
+}
+.react-flow__controls-button:hover {
+  background: white !important;
+  color: var(--accent) !important;
+}

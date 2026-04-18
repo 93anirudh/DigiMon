@@ -1,13 +1,34 @@
 import Database from 'better-sqlite3'
 import path from 'path'
+import fs from 'fs'
 import { app } from 'electron'
 
-const DB_PATH = path.join(app.getPath('userData'), 'practice-os.db')
+// Renamed productName=DigiMon means userData moved from %APPDATA%/practice-os
+// to %APPDATA%/DigiMon. On first launch after the rename, copy the old db
+// over so users don't lose their chats.
+const DB_FILENAME = 'practice-os.db'  // keep filename for compatibility
+const DB_PATH = path.join(app.getPath('userData'), DB_FILENAME)
+
+function migrateLegacyDb() {
+  if (fs.existsSync(DB_PATH)) return // new path already has data
+  try {
+    const parent = path.dirname(app.getPath('userData'))
+    const legacyPath = path.join(parent, 'practice-os', DB_FILENAME)
+    if (fs.existsSync(legacyPath)) {
+      fs.mkdirSync(path.dirname(DB_PATH), { recursive: true })
+      fs.copyFileSync(legacyPath, DB_PATH)
+      console.log(`[db] Migrated chats from ${legacyPath} → ${DB_PATH}`)
+    }
+  } catch (err: any) {
+    console.warn('[db] Legacy migration failed (non-fatal):', err.message)
+  }
+}
 
 let db: Database.Database
 
 export function getDb(): Database.Database {
   if (!db) {
+    migrateLegacyDb()
     db = new Database(DB_PATH)
     initSchema()
     runMigrations()

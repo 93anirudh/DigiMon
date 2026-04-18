@@ -1,131 +1,22 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import mermaid from 'mermaid'
 import { UsageMeter } from './UsageMeter'
 import { ModelDropdown } from './ModelDropdown'
+import { DiagramRenderer, DiagramError, parseDiagramSpec } from './DiagramRenderer'
 
-// ── Mermaid ───────────────────────────────────────────
-let mermaidTheme = ''
-
-function initMermaid(dark: boolean) {
-  // Aetheris redesign: light glass theme — always use 'default' (light) theme
-  mermaid.initialize({
-    startOnLoad: false, theme: 'default', securityLevel: 'loose',
-    fontFamily: 'Inter, system-ui, sans-serif', fontSize: 13,
-    themeVariables: {
-      primaryColor: '#A7F3D0',
-      primaryTextColor: '#1A1A2E',
-      primaryBorderColor: '#059669',
-      lineColor: '#7A7A95',
-      sectionBkgColor: '#ECFDF5',
-      altSectionBkgColor: '#F0FDF4',
-      gridColor: '#D1FAE5',
-      background: 'transparent',
-      mainBkg: '#F0FDF4',
-      secondBkg: '#ECFDF5',
-      tertiaryColor: '#D1FAE5',
-    },
-  })
-}
-
-function MermaidDiagram({ code, dark }: { code: string; dark: boolean }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [err, setErr] = useState<string | null>(null)
-  const [rendering, setRendering] = useState(true)
-  const id = useRef(`mm${Math.random().toString(36).slice(2, 9)}`)
-
-  useEffect(() => {
-    // Sanitize common AI output mistakes before handing to mermaid parser:
-    // - \" → "     (JSON-style escapes models sometimes emit)
-    // - \' → '
-    // - \\n → \n   (double-escaped newlines)
-    // - curly quotes → straight quotes (occasional smart-quote contamination)
-    const sanitized = code
-      .trim()
-      .replace(/\\"/g, '"')
-      .replace(/\\'/g, "'")
-      .replace(/\\\\n/g, '\n')
-      .replace(/[\u201C\u201D]/g, '"')
-      .replace(/[\u2018\u2019]/g, "'")
-
-    // Guard 1: empty diagram
-    if (!sanitized) {
-      setErr('Diagram was empty — the AI started a mermaid block but didn\'t put any content in it.')
-      setRendering(false)
-      return
-    }
-
-    // Guard 2: very short / obviously malformed
-    if (sanitized.length < 8) {
-      setErr(`Diagram too short to render: "${sanitized}"`)
-      setRendering(false)
-      return
-    }
-
-    initMermaid(dark)
-    setErr(null)
-    setRendering(true)
-
-    mermaid.render(id.current, sanitized)
-      .then(({ svg }) => {
-        if (ref.current) ref.current.innerHTML = svg
-        setRendering(false)
-      })
-      .catch((e: any) => {
-        const msg = e?.message ?? String(e)
-        const firstLine = msg.split('\n').find((l: string) => l.trim().length > 0) ?? msg
-        setErr(firstLine.slice(0, 200))
-        setRendering(false)
-      })
-  }, [code, dark])
-
-  if (err) return (
-    <div className="mermaid-error">
-      <div className="mermaid-error-title">⚠ Couldn't render diagram</div>
-      <div className="mermaid-error-msg">{err}</div>
-      <details className="mermaid-error-source">
-        <summary>Show source</summary>
-        <pre>{code || '(empty)'}</pre>
-      </details>
-    </div>
-  )
-
-  if (rendering) {
-    return <div className="mermaid-loading">Drawing diagram…</div>
+// ── Diagram handling ──────────────────────────────────
+// The LLM emits:  ```digimon-diagram  \n  {JSON}  \n  ```
+// We catch it in the code-block renderer below and send to DiagramRenderer.
+// No mermaid parser, no escape-hell — just JSON.
+function DiagramBlock({ code }: { code: string }) {
+  const result = parseDiagramSpec(code)
+  if (!result.ok) {
+    return <DiagramError raw={code} error={result.error} />
   }
-
-  return <div className="mermaid-wrap" ref={ref} />
+  return <DiagramRenderer spec={result.spec} />
 }
 
-// Tries to normalise the many ways models emit mermaid:
-// - bare "mermaid\ngraph LR..." without fences
-// - single-backtick wrapped `mermaid ...` blocks (common Gemini pattern)
-// - accidental 4+ backtick wraps
-// - using "diagram" instead of "graph"
-function fixMermaid(content: string): string {
-  let fixed = content
-
-  // Catch SINGLE-backtick mermaid blocks: `mermaid\n...\n`
-  // (Gemini often does this instead of triple backticks.)
-  // We look for a lone backtick followed by "mermaid\n" and grab everything
-  // until the closing lone backtick.
-  fixed = fixed.replace(
-    /(^|\n)`mermaid\n([\s\S]+?)\n`(?=\s|$)/g,
-    (_, lead, body) => `${lead}\`\`\`mermaid\n${body}\n\`\`\``
-  )
-
-  // Normalise 4+ backticks to 3
-  fixed = fixed.replace(/````+/g, '```')
-
-  // Catch fully-unfenced mermaid blocks starting with a recognised diagram keyword
-  fixed = fixed.replace(
-    /(?:^|\n)(mermaid\n(?:graph|flowchart|sequenceDiagram|pie|gantt|erDiagram|classDiagram|stateDiagram|journey|gitGraph|mindmap|timeline|quadrantChart)[^\n]*(?:\n(?!```).*)*)/gm,
-    (_, block) => `\n\`\`\`mermaid\n${block.replace(/^mermaid\n/, '')}\n\`\`\``
-  )
-
-  return fixed
-}
 
 function timeAgo(dateStr: string): string {
   const d = new Date(dateStr), now = new Date()
@@ -216,11 +107,10 @@ interface Props {
   chatId: number
   chatTitle: string
   activeModel: string
-  dark: boolean
   onSwitchModel: (to: string) => void
 }
 
-export function ChatView({ chatId, chatTitle, activeModel, dark, onSwitchModel }: Props) {
+export function ChatView({ chatId, chatTitle, activeModel, onSwitchModel }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
@@ -338,14 +228,17 @@ export function ChatView({ chatId, chatTitle, activeModel, dark, onSwitchModel }
     code({ className, children }: any) {
       const lang = /language-(\w+)/.exec(className || '')?.[1]
       const code = String(children).replace(/\n$/, '')
-      if (lang === 'mermaid') return <MermaidDiagram code={code} dark={dark} />
+      // New diagram format — structured JSON, no parser traps
+      if (lang === 'digimon-diagram' || lang === 'flowchart' || lang === 'diagram') {
+        return <DiagramBlock code={code} />
+      }
       return <code className={className}>{children}</code>
     }
   }
 
   const renderMd = (content: string) => (
     <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-      {fixMermaid(content)}
+      {content}
     </ReactMarkdown>
   )
 
