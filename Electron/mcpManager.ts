@@ -4,7 +4,6 @@ import { tool } from '@langchain/core/tools'
 import { z } from 'zod'
 import fs from 'fs'
 import { storeGet } from './store'
-import { getValidAccessToken } from './googleOAuth'
 
 export interface McpServerConfig {
   id: string
@@ -39,6 +38,14 @@ export function writeMcpConfig(configPath: string, config: McpConfig) {
 }
 
 async function connectServer(server: McpServerConfig): Promise<void> {
+  // google-workspace is handled natively via googleTools.ts — never spawn
+  // an MCP subprocess for it. This guard stops the old gdrive MCP from
+  // starting and crashing with "Credentials not found".
+  if (server.id === 'google-workspace') {
+    console.log('[mcp] Skipping google-workspace — handled natively, not via MCP')
+    return
+  }
+
   const client = new Client({ name: 'digimon', version: '1.0.0' })
 
   const secureEnv: Record<string, string> = {}
@@ -46,18 +53,6 @@ async function connectServer(server: McpServerConfig): Promise<void> {
     for (const key of server.envKeys) {
       const val = storeGet(`mcp_env_${server.id}_${key}`)
       if (val) secureEnv[key] = val
-    }
-  }
-
-  // For Google Workspace: inject a fresh OAuth access token automatically.
-  // The gdrive MCP reads GDRIVE_OAUTH_TOKEN from the env.
-  if (server.id === 'google-workspace') {
-    try {
-      const token = await getValidAccessToken()
-      secureEnv['GDRIVE_OAUTH_TOKEN'] = token
-      console.log('[mcp] Injected Google OAuth token for google-workspace')
-    } catch (err: any) {
-      throw new Error(`Google Workspace: ${err.message} — please reconnect in Settings → Integrations`)
     }
   }
 

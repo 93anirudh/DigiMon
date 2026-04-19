@@ -37,16 +37,10 @@ const MCP_CONFIG_PATH = app.isPackaged
 
 // ── MCP keyword trigger map ───────────────────────────
 const MCP_TRIGGER_MAP: Record<string, string> = {
-  // Google Workspace (OAuth-based)
-  'gmail': 'google-workspace',
-  'email': 'google-workspace',
-  'inbox': 'google-workspace',
-  'google drive': 'google-workspace',
-  'gdrive': 'google-workspace',
-  'google doc': 'google-workspace',
-  'google sheet': 'google-workspace',
-  'google calendar': 'google-workspace',
-  'my drive': 'google-workspace',
+  // Note: google-workspace is NOT in this map.
+  // Google tools are injected into the agent loop directly via
+  // googleTools.ts whenever the user is signed in. No MCP subprocess,
+  // no keyword gating.
 
   // Excel / CSV
   'excel': 'excel-csv',

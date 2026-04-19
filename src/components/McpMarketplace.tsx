@@ -124,9 +124,8 @@ export function McpMarketplace() {
     const result = await window.electronAPI.googleConnect()
     if (result.ok) {
       setGoogleStatus({ connected: true, email: result.email, expired: false })
-      await window.electronAPI.enableMcpWithEnv(
-        'google-workspace', {}, MCP_CATALOG.find(m => m.id === 'google-workspace')!
-      )
+      // No MCP registration — google-workspace is handled natively in
+      // googleTools.ts. Tools auto-appear in the agent loop.
     } else {
       setTestMap(p => ({ ...p, 'google-workspace': { ok: false, error: result.error } }))
     }
@@ -136,7 +135,6 @@ export function McpMarketplace() {
   const handleGoogleDisconnect = async () => {
     setLoading('google-workspace')
     await window.electronAPI.googleDisconnect()
-    await window.electronAPI.toggleMcpServer('google-workspace', false)
     setGoogleStatus({ connected: false })
     setLoading(null)
   }

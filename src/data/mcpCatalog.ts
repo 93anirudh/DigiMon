@@ -28,17 +28,19 @@ export const MCP_CATALOG: McpCatalogEntry[] = [
     id: 'google-workspace',
     name: 'Google Workspace',
     tagline: 'Gmail, Drive, Docs, Sheets, and Calendar — one click, no setup.',
-    description: 'Sign in with your Google account. DigiMon can then search emails, read Drive files, edit Sheets, and check Calendar — all through your account with full privacy.',
+    description: 'Sign in with your Google account. DigiMon can then search emails, read Drive files, read Sheets, and check Calendar — all through your account, with full privacy.',
     example: 'Try: "Find all emails from Mehta & Sons this month about GST and summarise the next steps."',
     category: 'Productivity',
     icon: '🟦',
     logoUrl: 'https://img.icons8.com/color/96/google-logo.png',
-    requiresAuth: true,               // triggers Google OAuth flow in the UI
-    command: 'npx',
-    args: ['-y', '@modelcontextprotocol/server-gdrive'],
-    envVars: [],                      // no manual entry needed — OAuth handles it
-    setupSteps: ['Click Connect and sign in with your Google account.'],
-    docsUrl: 'https://github.com/modelcontextprotocol/servers/tree/main/src/gdrive',
+    requiresAuth: true,
+    // Native implementation — no MCP subprocess. These fields are unused
+    // but kept so the tile renders consistently with other entries.
+    command: 'native',
+    args: [],
+    envVars: [],
+    setupSteps: ['Click "Sign in with Google" and approve access.'],
+    docsUrl: 'https://support.google.com/accounts/answer/3466521',
   },
   {
     id: 'memory',

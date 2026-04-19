@@ -10,6 +10,7 @@ import {
 } from './tools'
 import { requestApproval } from './approvalGate'
 import { extractTokenUsage, recordUsage } from './usageService'
+import { GOOGLE_TOOL_MAP, getGoogleToolsIfConnected } from './googleTools'
 import type { BrowserWindow } from 'electron'
 
 // ── Gemini model chain ────────────────────────────────
@@ -57,6 +58,16 @@ const SYSTEM_PROMPT = `You're DigiMon — a local desktop agent for Indian CA fi
 Your superpower is execute_shell. Use it freely. You know PowerShell, CMD, Tally CLI, curl, Python, Node, Git, SQL. When something needs doing, figure out the command and run it. See the real output, adapt, iterate. That's the whole game.
 
 Other tools: read_file, list_directory, write_file — use them when shell isn't the right fit.
+
+Google Workspace tools (only appear when the user has signed in via Settings → Integrations):
+- gmail_search: search inbox with Gmail query syntax ("from:x@y.com", "newer_than:7d", "has:attachment is:unread", "subject:invoice")
+- gmail_read: read full email by ID (from gmail_search results)
+- drive_list: list Drive files, optional filename search, sorted by most recent
+- drive_read_file: read a Google Doc, Slides, or plain-text file. For Sheets, this returns tab names.
+- sheets_read: read cells from a Google Sheet tab using A1 notation (defaults to A1:Z100)
+- calendar_list: upcoming events from primary Calendar (default 7 days)
+
+When the user mentions email/Gmail/inbox, Drive, Docs, Sheets, or Calendar, prefer these tools over shell commands. If the user isn't signed in, these tools won't be available — tell them to connect Google Workspace in Settings → Integrations.
 
 Format: markdown tables for structured data. For flowcharts, decision trees, or process diagrams, emit structured JSON in a fenced code block tagged \`digimon-diagram\`:
 
@@ -281,12 +292,19 @@ export async function runAgentLoop(
   modelOverride?: GeminiModel
 ): Promise<string> {
   const usingModel = modelOverride ?? activeModel
-  console.log(`[agent] Starting loop | model=${usingModel} | messages=${messages.length} | mcpTools=${mcpTools.length} | chatId=${chatId}`)
 
-  const model = buildModel(apiKey, usingModel, mcpTools)
+  // Pull in Google Workspace tools if the user is signed in.
+  // Zero cost when not connected — getGoogleToolsIfConnected returns [].
+  const googleTools = getGoogleToolsIfConnected()
+
+  const allExtraTools = [...mcpTools, ...googleTools]
+
+  console.log(`[agent] Starting loop | model=${usingModel} | messages=${messages.length} | mcpTools=${mcpTools.length} | googleTools=${googleTools.length} | chatId=${chatId}`)
+
+  const model = buildModel(apiKey, usingModel, allExtraTools)
   const currentMessages = [new SystemMessage(SYSTEM_PROMPT), ...messages]
 
-  const dynamicToolMap: Record<string, (args: any) => Promise<string>> = { ...TOOL_MAP }
+  const dynamicToolMap: Record<string, (args: any) => Promise<string>> = { ...TOOL_MAP, ...GOOGLE_TOOL_MAP }
   for (const mcpTool of mcpTools) {
     dynamicToolMap[mcpTool.name] = (args: any) => mcpTool.invoke(args)
   }
