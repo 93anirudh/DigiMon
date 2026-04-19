@@ -86,9 +86,17 @@ function detectMcpServerId(userMessage: string): string | null {
 }
 
 function createWindow() {
+  // Resolve icon path — works in dev and when packaged inside asar.
+  // In packaged app, process.resourcesPath points to …/resources/app.asar.unpacked
+  // but build/icon.png is inside app.asar so we use __dirname relative path.
+  const iconPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'app.asar', 'build', 'icon.png')
+    : path.join(app.getAppPath(), 'build', 'icon.png')
+
   const win = new BrowserWindow({
     width: 1300, height: 840, minWidth: 900, minHeight: 600,
     title: 'DigiMon',
+    icon: iconPath,
     backgroundColor: '#E8E6F5',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),

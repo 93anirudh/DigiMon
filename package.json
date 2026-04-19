@@ -43,12 +43,14 @@
     "appId": "com.digimon.app",
     "productName": "DigiMon",
     "directories": {
-      "output": "release"
+      "output": "release",
+      "buildResources": "build"
     },
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
-      "mcp_config.json"
+      "mcp_config.json",
+      "build/icon.png"
     ],
     "extraResources": [
       {
@@ -57,13 +59,12 @@
       }
     ],
     "win": {
-      "target": "nsis"
+      "target": "portable",
+      "icon": "build/icon.ico",
+      "artifactName": "DigiMon.exe"
     },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+    "portable": {
+      "artifactName": "DigiMon.exe"
     },
     "asar": true,
     "asarUnpack": [
