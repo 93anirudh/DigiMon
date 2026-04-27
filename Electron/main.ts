@@ -12,6 +12,11 @@ import {
 } from './llmService'
 import { resolveApproval } from './approvalGate'
 import {
+  createClient, listClients, getClient, updateClient, archiveClient, deleteClient,
+  createTask, listTasksForClient, listAllTasksWithClient, getTask,
+  updateTaskStatus, updateTask, deleteTask, getDashboardCounts,
+} from './practiceService'
+import {
   readMcpConfig, writeMcpConfig, getMcpStatus,
   loadMcpServer, disconnectAll, testMcpServer
 } from './mcpManager'
@@ -442,6 +447,26 @@ app.whenReady().then(async () => {
     await logoutWhatsApp()
     return true
   })
+
+  // ── CA Practice: Clients ──────────────────────────────
+  ipcMain.handle('practice:createClient', (_e, input) => createClient(input))
+  ipcMain.handle('practice:listClients',  (_e, includeArchived = false) => listClients(includeArchived))
+  ipcMain.handle('practice:getClient',    (_e, id: number) => getClient(id))
+  ipcMain.handle('practice:updateClient', (_e, id: number, patch) => updateClient(id, patch))
+  ipcMain.handle('practice:archiveClient',(_e, id: number, archived: boolean) => archiveClient(id, archived))
+  ipcMain.handle('practice:deleteClient', (_e, id: number) => deleteClient(id))
+
+  // ── CA Practice: Tasks ────────────────────────────────
+  ipcMain.handle('practice:createTask',         (_e, input) => createTask(input))
+  ipcMain.handle('practice:listTasksForClient', (_e, clientId: number) => listTasksForClient(clientId))
+  ipcMain.handle('practice:listAllTasks',       () => listAllTasksWithClient())
+  ipcMain.handle('practice:getTask',            (_e, id: number) => getTask(id))
+  ipcMain.handle('practice:updateTaskStatus',   (_e, id: number, status: string) => updateTaskStatus(id, status))
+  ipcMain.handle('practice:updateTask',         (_e, id: number, patch) => updateTask(id, patch))
+  ipcMain.handle('practice:deleteTask',         (_e, id: number) => deleteTask(id))
+
+  // ── CA Practice: Dashboard ────────────────────────────
+  ipcMain.handle('practice:dashboardCounts', () => getDashboardCounts())
 
   createWindow()
 })

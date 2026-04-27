@@ -4,15 +4,20 @@ import { ChatView } from './components/ChatView'
 import { SettingsView } from './components/SettingsView'
 import { ApprovalModal } from './components/ApprovalModal'
 import { SetupWizard } from './components/SetupWizard'
+import { ClientsView } from './components/ClientsView'
+import { ClientDetail } from './components/ClientDetail'
 import './index.css'
 
 interface Chat { id: number; title: string; created_at: string }
 interface ApprovalRequest { toolName: string; toolArgs: Record<string, any> }
 
+type View = 'practice' | 'practice-detail' | 'chat' | 'settings'
+
 export default function App() {
   const [chats, setChats] = useState<Chat[]>([])
   const [activeChatId, setActiveChatId] = useState<number | null>(null)
-  const [view, setView] = useState<'chat' | 'settings'>('chat')
+  const [activeClientId, setActiveClientId] = useState<number | null>(null)
+  const [view, setView] = useState<View>('practice')
   const [approval, setApproval] = useState<ApprovalRequest | null>(null)
   const [activeModel, setActiveModel] = useState<string>('gemini-3-pro')
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null)
@@ -45,9 +50,9 @@ export default function App() {
         e.preventDefault(); handleNewChat()
       }
       if ((e.ctrlKey || e.metaKey) && e.key === ',') {
-        e.preventDefault(); setView(v => v === 'settings' ? 'chat' : 'settings')
+        e.preventDefault(); setView(v => v === 'settings' ? 'practice' : 'settings')
       }
-      if (e.key === 'Escape' && view === 'settings') setView('chat')
+      if (e.key === 'Escape' && view === 'settings') setView('practice')
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
@@ -85,6 +90,23 @@ export default function App() {
     setNeedsSetup(false)
   }
 
+  const goToPractice = () => {
+    setActiveClientId(null)
+    setActiveChatId(null)
+    setView('practice')
+  }
+
+  const openClient = (clientId: number) => {
+    setActiveClientId(clientId)
+    setView('practice-detail')
+  }
+
+  const openCopilotFromClient = async (chatId: number) => {
+    await loadChats()
+    setActiveChatId(chatId)
+    setView('chat')
+  }
+
   const activeChat = chats.find(c => c.id === activeChatId)
 
   if (needsSetup === true) {
@@ -112,9 +134,10 @@ export default function App() {
         chats={chats}
         activeChatId={activeChatId}
         currentView={view}
-        onSelectChat={id => { setActiveChatId(id); setView('chat') }}
+        onSelectChat={(id: number) => { setActiveChatId(id); setView('chat') }}
         onNewChat={handleNewChat}
-        onGoHome={() => { setActiveChatId(null); setView('chat') }}
+        onGoHome={goToPractice}
+        onGoPractice={goToPractice}
         onDeleteChat={handleDeleteChat}
         onOpenSettings={() => setView('settings')}
       />
@@ -122,7 +145,16 @@ export default function App() {
       <div className="main-content">
         {view === 'settings' ? (
           <SettingsView />
-        ) : activeChatId && activeChat ? (
+        ) : view === 'practice' ? (
+          <ClientsView onOpenClient={openClient} />
+        ) : view === 'practice-detail' && activeClientId !== null ? (
+          <ClientDetail
+            clientId={activeClientId}
+            onBack={goToPractice}
+            onClientDeleted={goToPractice}
+            onOpenCopilot={openCopilotFromClient}
+          />
+        ) : view === 'chat' && activeChatId && activeChat ? (
           <ChatView
             chatId={activeChatId}
             chatTitle={activeChat.title}
@@ -130,13 +162,7 @@ export default function App() {
             onSwitchModel={handleSwitchModel}
           />
         ) : (
-          <WelcomeScreen onSelectSuggestion={async (text) => {
-            const id = await window.electronAPI.createChat('…')
-            await loadChats()
-            setActiveChatId(id)
-            setView('chat')
-            setTimeout(() => { window._pendingSuggestion = text }, 100)
-          }} />
+          <ClientsView onOpenClient={openClient} />
         )}
       </div>
     </div>
@@ -144,44 +170,3 @@ export default function App() {
 }
 
 declare global { interface Window { _pendingSuggestion?: string } }
-
-const SUGGESTIONS = [
-  { icon: '📋', title: 'GST filing process',
-    prompt: 'Show me the complete GSTR-3B monthly filing process as a detailed Mermaid flowchart.' },
-  { icon: '📊', title: 'TDS rate table',
-    prompt: 'Create a markdown table of TDS rates for FY 2024-25 covering sections 192, 194A, 194C, 194D, 194H, 194I, 194J, 194Q.' },
-  { icon: '🗂️', title: '3CD audit checklist',
-    prompt: 'Generate a Form 3CD tax audit checklist organised by clause number, as a table.' },
-  { icon: '📅', title: 'Compliance calendar',
-    prompt: 'Create a compliance calendar for this month as a table — GST, TDS, ROC, income tax due dates.' },
-  { icon: '💡', title: 'Help me draft an email',
-    prompt: 'Help me draft a polite email to a client asking for pending GST invoice details before the return due date.' },
-]
-
-function greetingForTime(): string {
-  const h = new Date().getHours()
-  if (h < 12) return 'Good morning'
-  if (h < 17) return 'Good afternoon'
-  return 'Good evening'
-}
-
-function WelcomeScreen({ onSelectSuggestion }: { onSelectSuggestion: (text: string) => void }) {
-  return (
-    <div className="welcome-screen">
-      <div className="welcome-logo" />
-      <div className="welcome-title">{greetingForTime()}</div>
-      <div className="welcome-sub">
-        How can I help you today?
-      </div>
-
-      <div className="suggestion-grid">
-        {SUGGESTIONS.map((s, i) => (
-          <button key={i} className="suggestion-card" onClick={() => onSelectSuggestion(s.prompt)}>
-            <span className="suggestion-icon">{s.icon}</span>
-            <span className="suggestion-title">{s.title}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}

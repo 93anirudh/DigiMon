@@ -5,10 +5,11 @@ interface Chat { id: number; title: string; created_at: string }
 interface Props {
   chats: Chat[]
   activeChatId: number | null
-  currentView: 'chat' | 'settings'
+  currentView: 'practice' | 'practice-detail' | 'chat' | 'settings'
   onSelectChat: (id: number) => void
   onNewChat: () => void
   onGoHome: () => void
+  onGoPractice: () => void
   onDeleteChat: (id: number) => void
   onOpenSettings: () => void
 }
@@ -40,7 +41,7 @@ function groupByDate(chats: Chat[]): { label: string; items: Chat[] }[] {
 
 export function Sidebar({
   chats, activeChatId, currentView,
-  onSelectChat, onNewChat, onGoHome, onDeleteChat,
+  onSelectChat, onNewChat, onGoHome, onGoPractice, onDeleteChat,
   onOpenSettings,
 }: Props) {
   const [search, setSearch] = useState('')
@@ -85,9 +86,19 @@ export function Sidebar({
       {/* Body */}
       <div className="sidebar-body">
         <button
+          className={`sidebar-nav-btn ${currentView === 'practice' || currentView === 'practice-detail' ? 'active' : ''}`}
+          onClick={onGoPractice}
+          title="Clients & Tasks"
+          style={{ marginBottom: 4 }}
+        >
+          <span className="nav-icon">◫</span>
+          <span>Practice</span>
+        </button>
+        <button
           className={`sidebar-nav-btn ${activeChatId === null && currentView === 'chat' ? 'active' : ''}`}
           onClick={onGoHome}
           title="Go to home screen"
+          style={{ display: 'none' }}
         >
           <span className="nav-icon">⌂</span>
           <span>Home</span>

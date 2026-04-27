@@ -71,6 +71,70 @@ function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_usage_created ON usage_events(created_at);
     CREATE INDEX IF NOT EXISTS idx_usage_chat ON usage_events(chat_id);
     CREATE INDEX IF NOT EXISTS idx_usage_provider ON usage_events(provider);
+
+    -- ── CA Practice: Clients & Tasks ─────────────────────────
+    CREATE TABLE IF NOT EXISTS clients (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      gstin TEXT,
+      pan TEXT,
+      contact_email TEXT,
+      contact_phone TEXT,
+      fy_end TEXT DEFAULT '03-31',
+      business_type TEXT,
+      notes TEXT,
+      archived INTEGER NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS tasks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_id INTEGER NOT NULL,
+      workflow TEXT NOT NULL,
+      period TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'not_started'
+        CHECK(status IN ('not_started','in_progress','needs_input','completed','flagged')),
+      due_date TEXT,
+      result_summary_json TEXT,
+      chat_id INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      completed_at DATETIME,
+      FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+      FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS task_files (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      task_id INTEGER NOT NULL,
+      kind TEXT NOT NULL,
+      original_name TEXT NOT NULL,
+      stored_path TEXT NOT NULL,
+      size_bytes INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS task_runs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      task_id INTEGER NOT NULL,
+      started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      ended_at DATETIME,
+      status TEXT NOT NULL DEFAULT 'running'
+        CHECK(status IN ('running','success','error','cancelled')),
+      tokens_used INTEGER DEFAULT 0,
+      cost_paise INTEGER DEFAULT 0,
+      error_message TEXT,
+      log_json TEXT,
+      FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_tasks_client ON tasks(client_id);
+    CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+    CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_date);
+    CREATE INDEX IF NOT EXISTS idx_task_files_task ON task_files(task_id);
+    CREATE INDEX IF NOT EXISTS idx_task_runs_task ON task_runs(task_id);
   `)
 }
 

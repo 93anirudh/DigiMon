@@ -78,6 +78,27 @@ declare global {
         serverRunning: boolean
       }>
       whatsappLogout: () => Promise<boolean>
+
+      // ── CA Practice: Clients & Tasks ────────────────────
+      createClient:  (input: import('./types/practice').ClientInput) => Promise<number>
+      listClients:   (includeArchived?: boolean) => Promise<import('./types/practice').Client[]>
+      getClient:     (id: number) => Promise<import('./types/practice').Client | undefined>
+      updateClient:  (id: number, patch: Partial<import('./types/practice').ClientInput>) => Promise<boolean>
+      archiveClient: (id: number, archived: boolean) => Promise<boolean>
+      deleteClient:  (id: number) => Promise<boolean>
+
+      createTask:         (input: import('./types/practice').TaskInput) => Promise<number>
+      listTasksForClient: (clientId: number) => Promise<import('./types/practice').Task[]>
+      listAllTasks:       () => Promise<import('./types/practice').TaskWithClient[]>
+      getTask:            (id: number) => Promise<import('./types/practice').Task | undefined>
+      updateTaskStatus:   (id: number, status: import('./types/practice').TaskStatus) => Promise<boolean>
+      updateTask:         (id: number, patch: any) => Promise<boolean>
+      deleteTask:         (id: number) => Promise<boolean>
+
+      dashboardCounts: () => Promise<{
+        totalClients: number
+        tasksByStatus: Record<string, number>
+      }>
     }
   }
 }

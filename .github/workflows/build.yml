@@ -2,7 +2,7 @@ name: Build DigiMon
 
 on:
   push:
-    branches: [feat/google-oauth]
+    branches: [feat/google-oauth, feat/clients-pivot]
   workflow_dispatch:
 
 jobs:

@@ -90,4 +90,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
   whatsappStatus:   () => ipcRenderer.invoke('whatsapp:status'),
   whatsappStatusSync: () => ipcRenderer.invoke('whatsapp:getStatusSync'),
   whatsappLogout:   () => ipcRenderer.invoke('whatsapp:logout'),
+
+  // ── CA Practice: Clients ──────────────────────────────
+  createClient:  (input: any) => ipcRenderer.invoke('practice:createClient', input),
+  listClients:   (includeArchived?: boolean) => ipcRenderer.invoke('practice:listClients', includeArchived),
+  getClient:     (id: number) => ipcRenderer.invoke('practice:getClient', id),
+  updateClient:  (id: number, patch: any) => ipcRenderer.invoke('practice:updateClient', id, patch),
+  archiveClient: (id: number, archived: boolean) => ipcRenderer.invoke('practice:archiveClient', id, archived),
+  deleteClient:  (id: number) => ipcRenderer.invoke('practice:deleteClient', id),
+
+  // ── CA Practice: Tasks ────────────────────────────────
+  createTask:         (input: any) => ipcRenderer.invoke('practice:createTask', input),
+  listTasksForClient: (clientId: number) => ipcRenderer.invoke('practice:listTasksForClient', clientId),
+  listAllTasks:       () => ipcRenderer.invoke('practice:listAllTasks'),
+  getTask:            (id: number) => ipcRenderer.invoke('practice:getTask', id),
+  updateTaskStatus:   (id: number, status: string) => ipcRenderer.invoke('practice:updateTaskStatus', id, status),
+  updateTask:         (id: number, patch: any) => ipcRenderer.invoke('practice:updateTask', id, patch),
+  deleteTask:         (id: number) => ipcRenderer.invoke('practice:deleteTask', id),
+
+  // ── CA Practice: Dashboard ────────────────────────────
+  dashboardCounts: () => ipcRenderer.invoke('practice:dashboardCounts'),
 })
