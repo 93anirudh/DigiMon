@@ -9,11 +9,12 @@ interface Props {
   onBack: () => void
   onClientDeleted: () => void
   onOpenCopilot: (chatId: number) => void
+  onOpenTask: (taskId: number) => void
 }
 
 type Tab = 'overview' | 'tasks' | 'copilot'
 
-export function ClientDetail({ clientId, onBack, onClientDeleted, onOpenCopilot }: Props) {
+export function ClientDetail({ clientId, onBack, onClientDeleted, onOpenCopilot, onOpenTask }: Props) {
   const [client, setClient] = useState<Client | null>(null)
   const [tasks, setTasks] = useState<Task[]>([])
   const [tab, setTab] = useState<Tab>('overview')
@@ -126,6 +127,7 @@ export function ClientDetail({ clientId, onBack, onClientDeleted, onOpenCopilot 
             tasks={tasks}
             onNewTask={() => setShowNewTask(true)}
             onChange={reload}
+            onOpenTask={onOpenTask}
           />
         )}
 
@@ -243,13 +245,15 @@ function InfoRow({ label, value }: { label: string; value: string | null }) {
 // ── Tasks Tab ────────────────────────────────────────────
 
 function TasksTab({
-  tasks, onNewTask, onChange,
+  tasks, onNewTask, onChange, onOpenTask,
 }: {
   tasks: Task[]
   onNewTask: () => void
   onChange: () => void
+  onOpenTask: (taskId: number) => void
 }) {
-  const cycle = async (task: Task) => {
+  const cycleStatus = async (e: React.MouseEvent, task: Task) => {
+    e.stopPropagation()
     const flow: TaskStatus[] = ['not_started', 'in_progress', 'needs_input', 'completed']
     const idx = flow.indexOf(task.status)
     const next = idx === -1 ? 'in_progress' : flow[(idx + 1) % flow.length]
@@ -280,7 +284,7 @@ function TasksTab({
           {tasks.map(t => (
             <div
               key={t.id}
-              onClick={() => cycle(t)}
+              onClick={() => onOpenTask(t.id)}
               style={{
                 background: 'var(--surface)',
                 border: '1px solid var(--border)',
@@ -291,7 +295,7 @@ function TasksTab({
                 justifyContent: 'space-between',
                 cursor: 'pointer',
               }}
-              title="Click to advance status"
+              title="Open task"
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 500 }}>
@@ -301,7 +305,9 @@ function TasksTab({
                   {t.period}{t.due_date ? ` · Due ${new Date(t.due_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}` : ''}
                 </div>
               </div>
-              <StatusBadge status={t.status} />
+              <div onClick={e => cycleStatus(e, t)} title="Click to advance status">
+                <StatusBadge status={t.status} />
+              </div>
             </div>
           ))}
         </div>

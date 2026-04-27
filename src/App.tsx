@@ -6,17 +6,19 @@ import { ApprovalModal } from './components/ApprovalModal'
 import { SetupWizard } from './components/SetupWizard'
 import { ClientsView } from './components/ClientsView'
 import { ClientDetail } from './components/ClientDetail'
+import { Gstr2bTaskView } from './components/Gstr2bTaskView'
 import './index.css'
 
 interface Chat { id: number; title: string; created_at: string }
 interface ApprovalRequest { toolName: string; toolArgs: Record<string, any> }
 
-type View = 'practice' | 'practice-detail' | 'chat' | 'settings'
+type View = 'practice' | 'practice-detail' | 'task-detail' | 'chat' | 'settings'
 
 export default function App() {
   const [chats, setChats] = useState<Chat[]>([])
   const [activeChatId, setActiveChatId] = useState<number | null>(null)
   const [activeClientId, setActiveClientId] = useState<number | null>(null)
+  const [activeTaskId, setActiveTaskId] = useState<number | null>(null)
   const [view, setView] = useState<View>('practice')
   const [approval, setApproval] = useState<ApprovalRequest | null>(null)
   const [activeModel, setActiveModel] = useState<string>('gemini-3-pro')
@@ -93,12 +95,24 @@ export default function App() {
   const goToPractice = () => {
     setActiveClientId(null)
     setActiveChatId(null)
+    setActiveTaskId(null)
     setView('practice')
   }
 
   const openClient = (clientId: number) => {
     setActiveClientId(clientId)
+    setActiveTaskId(null)
     setView('practice-detail')
+  }
+
+  const openTask = (taskId: number) => {
+    setActiveTaskId(taskId)
+    setView('task-detail')
+  }
+
+  const backToClient = () => {
+    setActiveTaskId(null)
+    setView(activeClientId !== null ? 'practice-detail' : 'practice')
   }
 
   const openCopilotFromClient = async (chatId: number) => {
@@ -153,6 +167,12 @@ export default function App() {
             onBack={goToPractice}
             onClientDeleted={goToPractice}
             onOpenCopilot={openCopilotFromClient}
+            onOpenTask={openTask}
+          />
+        ) : view === 'task-detail' && activeTaskId !== null ? (
+          <Gstr2bTaskView
+            taskId={activeTaskId}
+            onBack={backToClient}
           />
         ) : view === 'chat' && activeChatId && activeChat ? (
           <ChatView

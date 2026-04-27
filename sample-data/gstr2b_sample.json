@@ -1,0 +1,155 @@
+{
+  "data": {
+    "rtnprd": "032026",
+    "gstin": "27AAAAA0000A1Z5",
+    "docdata": {
+      "b2b": [
+        {
+          "ctin": "27AABCT1234A1Z5",
+          "trdnm": "Tata Consumer Products Ltd",
+          "supgstin": "27AABCT1234A1Z5",
+          "inv": [
+            {
+              "inum": "INV-2026-001",
+              "dt": "14-03-2026",
+              "val": 59000,
+              "txval": 50000,
+              "iamt": 9000,
+              "camt": 0,
+              "samt": 0,
+              "csamt": 0
+            }
+          ]
+        },
+        {
+          "ctin": "27AABCR5678B1Z3",
+          "trdnm": "Reliance Retail Ltd",
+          "inv": [
+            {
+              "inum": "INV-2026-002",
+              "dt": "15-03-2026",
+              "val": 145000,
+              "txval": 122881,
+              "iamt": 0,
+              "camt": 11059.50,
+              "samt": 11059.50,
+              "csamt": 0
+            }
+          ]
+        },
+        {
+          "ctin": "27AABCH9012C1Z1",
+          "trdnm": "HUL Distributors Pvt Ltd",
+          "inv": [
+            {
+              "inum": "INV-2026-003",
+              "dt": "18-03-2026",
+              "val": 88500,
+              "txval": 75000,
+              "iamt": 0,
+              "camt": 6750,
+              "samt": 6750,
+              "csamt": 0
+            }
+          ]
+        },
+        {
+          "ctin": "27AABCG7890E1Z7",
+          "trdnm": "Godrej Industries Ltd",
+          "inv": [
+            {
+              "inum": "INV-2026-005",
+              "dt": "10-04-2026",
+              "val": 53100,
+              "txval": 45000,
+              "iamt": 0,
+              "camt": 4050,
+              "samt": 4050,
+              "csamt": 0
+            }
+          ]
+        },
+        {
+          "ctin": "27AABCI2345F1Z5",
+          "trdnm": "ITC Limited",
+          "inv": [
+            {
+              "inum": "INV-2026-006",
+              "dt": "25-03-2026",
+              "val": 103840,
+              "txval": 88000,
+              "iamt": 0,
+              "camt": 7920,
+              "samt": 7920,
+              "csamt": 0
+            }
+          ]
+        },
+        {
+          "ctin": "27AABCM6789G1Z3",
+          "trdnm": "Marico Ltd",
+          "inv": [
+            {
+              "inum": "INV-2026-007",
+              "dt": "27-03-2026",
+              "val": 33040,
+              "txval": 28000,
+              "iamt": 5040,
+              "camt": 0,
+              "samt": 0,
+              "csamt": 0
+            }
+          ]
+        },
+        {
+          "ctin": "27AABCN4567I1Z9",
+          "trdnm": "Nestle India Ltd",
+          "inv": [
+            {
+              "inum": "INV-2026-009",
+              "dt": "30-03-2026",
+              "val": 73160,
+              "txval": 62000,
+              "iamt": 11160,
+              "camt": 0,
+              "samt": 0,
+              "csamt": 0
+            }
+          ]
+        },
+        {
+          "ctin": "27AABCP8901J1Z7",
+          "trdnm": "Pidilite Industries Ltd",
+          "inv": [
+            {
+              "inum": "INV-2026-010",
+              "dt": "31-03-2026",
+              "val": 25960,
+              "txval": 22000,
+              "iamt": 0,
+              "camt": 1980,
+              "samt": 1980,
+              "csamt": 0
+            }
+          ]
+        },
+        {
+          "ctin": "27AABCS5555K1Z2",
+          "trdnm": "Sun Pharma Distributors",
+          "inv": [
+            {
+              "inum": "INV-2026-099",
+              "dt": "29-03-2026",
+              "val": 41300,
+              "txval": 35000,
+              "iamt": 6300,
+              "camt": 0,
+              "samt": 0,
+              "csamt": 0
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

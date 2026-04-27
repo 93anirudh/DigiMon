@@ -5,7 +5,7 @@ interface Chat { id: number; title: string; created_at: string }
 interface Props {
   chats: Chat[]
   activeChatId: number | null
-  currentView: 'practice' | 'practice-detail' | 'chat' | 'settings'
+  currentView: 'practice' | 'practice-detail' | 'task-detail' | 'chat' | 'settings'
   onSelectChat: (id: number) => void
   onNewChat: () => void
   onGoHome: () => void
@@ -86,7 +86,7 @@ export function Sidebar({
       {/* Body */}
       <div className="sidebar-body">
         <button
-          className={`sidebar-nav-btn ${currentView === 'practice' || currentView === 'practice-detail' ? 'active' : ''}`}
+          className={`sidebar-nav-btn ${currentView === 'practice' || currentView === 'practice-detail' || currentView === 'task-detail' ? 'active' : ''}`}
           onClick={onGoPractice}
           title="Clients & Tasks"
           style={{ marginBottom: 4 }}

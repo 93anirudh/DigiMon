@@ -110,4 +110,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ── CA Practice: Dashboard ────────────────────────────
   dashboardCounts: () => ipcRenderer.invoke('practice:dashboardCounts'),
+
+  // ── GSTR-2B Reconciliation ────────────────────────────
+  reconListFiles: (taskId: number) => ipcRenderer.invoke('recon:listFiles', taskId),
+  reconDeleteFile: (fileId: number) => ipcRenderer.invoke('recon:deleteFile', fileId),
+  reconIngestBuffer: (taskId: number, kind: string, bytes: ArrayBuffer, originalName: string) =>
+    ipcRenderer.invoke('recon:ingestBuffer', taskId, kind, bytes, originalName),
+  reconRun: (taskId: number) => ipcRenderer.invoke('recon:run', taskId),
+  reconGetResult: (taskId: number) => ipcRenderer.invoke('recon:getResult', taskId),
+  reconListRuns: (taskId: number) => ipcRenderer.invoke('recon:listRuns', taskId),
 })

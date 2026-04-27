@@ -99,6 +99,24 @@ declare global {
         totalClients: number
         tasksByStatus: Record<string, number>
       }>
+
+      // ── GSTR-2B Reconciliation ──────────────────────────
+      reconListFiles: (taskId: number) => Promise<Array<{
+        id: number; task_id: number; kind: string;
+        original_name: string; stored_path: string;
+        size_bytes: number | null; created_at: string;
+      }>>
+      reconDeleteFile: (fileId: number) => Promise<boolean>
+      reconIngestBuffer: (taskId: number, kind: string, bytes: ArrayBuffer, originalName: string)
+        => Promise<{ fileId: number; storedPath: string }>
+      reconRun: (taskId: number) => Promise<{
+        ok: boolean
+        result?: import('./types/reconciliation').ReconciliationResult
+        error?: string
+        durationMs?: number
+      }>
+      reconGetResult: (taskId: number) => Promise<import('./types/reconciliation').ReconciliationResult | null>
+      reconListRuns: (taskId: number) => Promise<any[]>
     }
   }
 }

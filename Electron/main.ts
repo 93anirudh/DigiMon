@@ -17,6 +17,10 @@ import {
   updateTaskStatus, updateTask, deleteTask, getDashboardCounts,
 } from './practiceService'
 import {
+  ingestFile, ingestBuffer, listTaskFiles, deleteTaskFile,
+  runGstr2bReconciliation, getReconciliationResult, listRuns,
+} from './reconcile/service'
+import {
   readMcpConfig, writeMcpConfig, getMcpStatus,
   loadMcpServer, disconnectAll, testMcpServer
 } from './mcpManager'
@@ -467,6 +471,17 @@ app.whenReady().then(async () => {
 
   // ── CA Practice: Dashboard ────────────────────────────
   ipcMain.handle('practice:dashboardCounts', () => getDashboardCounts())
+
+  // ── GSTR-2B Reconciliation ────────────────────────────
+  ipcMain.handle('recon:listFiles', (_e, taskId: number) => listTaskFiles(taskId))
+  ipcMain.handle('recon:deleteFile', (_e, fileId: number) => deleteTaskFile(fileId))
+  ipcMain.handle('recon:ingestPath', (_e, taskId: number, kind: any, srcPath: string, originalName: string) =>
+    ingestFile(taskId, kind, srcPath, originalName))
+  ipcMain.handle('recon:ingestBuffer', (_e, taskId: number, kind: any, bytes: ArrayBuffer, originalName: string) =>
+    ingestBuffer(taskId, kind, Buffer.from(bytes), originalName))
+  ipcMain.handle('recon:run', (_e, taskId: number) => runGstr2bReconciliation(taskId))
+  ipcMain.handle('recon:getResult', (_e, taskId: number) => getReconciliationResult(taskId))
+  ipcMain.handle('recon:listRuns', (_e, taskId: number) => listRuns(taskId))
 
   createWindow()
 })
