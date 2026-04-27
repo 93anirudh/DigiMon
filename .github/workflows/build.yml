@@ -21,6 +21,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Create googleConfig.ts from template (CI placeholder)
+        shell: pwsh
+        run: |
+          if (-not (Test-Path Electron/googleConfig.ts)) {
+            Copy-Item Electron/googleConfig.template.ts Electron/googleConfig.ts
+            Write-Host "✅ Created Electron/googleConfig.ts from template (OAuth disabled in this build)"
+          }
+
       - name: Build & package portable .exe
         run: npm run package
         env:
