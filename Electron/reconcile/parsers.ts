@@ -1,8 +1,9 @@
 // File parsers for GSTR-2B reconciliation.
 // Output a normalized Invoice[] regardless of input format.
-// No external dependencies — pure Node/TS.
 
 import fs from 'fs'
+import path from 'path'
+import * as XLSX from 'xlsx'
 
 export interface NormalizedInvoice {
   source: 'register' | 'gstr2b'
@@ -126,30 +127,55 @@ function parseAmount(raw: any): number {
   return isNaN(n) ? 0 : n
 }
 
-// ── Public: parse purchase register ───────────────────────
+// ── Public: parse purchase register (auto-detect format) ─
 
-export function parsePurchaseRegisterCSV(filePath: string): NormalizedInvoice[] {
-  const text = fs.readFileSync(filePath, 'utf-8')
-  const rows = parseCSV(text)
-  if (rows.length < 2) return []
+export function parsePurchaseRegister(filePath: string): NormalizedInvoice[] {
+  const ext = path.extname(filePath).toLowerCase()
+  if (ext === '.xlsx' || ext === '.xls' || ext === '.xlsm') {
+    return parsePurchaseRegisterXLSX(filePath)
+  }
+  // default to CSV (covers .csv, .txt, no extension)
+  return parsePurchaseRegisterCSV(filePath)
+}
 
-  // Find the header row — sometimes there's a title row before headers
-  let headerIdx = 0
-  let headerMap = resolveHeaders(rows[0])
-  if (headerMap.supplier_gstin === undefined || headerMap.invoice_number === undefined) {
-    // try row 1
-    if (rows.length > 1) {
-      const m2 = resolveHeaders(rows[1])
-      if (m2.supplier_gstin !== undefined && m2.invoice_number !== undefined) {
-        headerIdx = 1
-        headerMap = m2
+// ── Public: parse purchase register (XLSX) ────────────────
+
+export function parsePurchaseRegisterXLSX(filePath: string): NormalizedInvoice[] {
+  const wb = XLSX.readFile(filePath, { cellDates: true, raw: false })
+  // Pick the first sheet that has data and identifiable headers
+  for (const sheetName of wb.SheetNames) {
+    const ws = wb.Sheets[sheetName]
+    const rows = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1, blankrows: false, defval: '' }) as any[][]
+    if (rows.length < 2) continue
+
+    // String-ify all cells for our existing alias logic
+    const stringRows: string[][] = rows.map(r => r.map(c => c == null ? '' : String(c)))
+
+    // Try header row 0 then 1 (some exports have a title row)
+    let headerIdx = 0
+    let headerMap = resolveHeaders(stringRows[0])
+    if (headerMap.supplier_gstin === undefined || headerMap.invoice_number === undefined) {
+      if (stringRows.length > 1) {
+        const m2 = resolveHeaders(stringRows[1])
+        if (m2.supplier_gstin !== undefined && m2.invoice_number !== undefined) {
+          headerIdx = 1
+          headerMap = m2
+        }
       }
     }
-  }
-  if (headerMap.supplier_gstin === undefined || headerMap.invoice_number === undefined) {
-    throw new Error('Could not identify required columns. Need at least: GSTIN, Invoice Number, Invoice Date, Taxable Value.')
-  }
+    if (headerMap.supplier_gstin === undefined || headerMap.invoice_number === undefined) continue
 
+    return rowsToInvoices(stringRows, headerIdx, headerMap)
+  }
+  throw new Error('No sheet in this Excel file has the required columns (GSTIN, Invoice Number, Invoice Date, Taxable Value).')
+}
+
+// Shared row → invoice projection
+function rowsToInvoices(
+  rows: string[][],
+  headerIdx: number,
+  headerMap: Record<string, number>,
+): NormalizedInvoice[] {
   const out: NormalizedInvoice[] = []
   for (let i = headerIdx + 1; i < rows.length; i++) {
     const r = rows[i]
@@ -181,6 +207,33 @@ export function parsePurchaseRegisterCSV(filePath: string): NormalizedInvoice[] 
     })
   }
   return out
+}
+
+// ── Public: parse purchase register (CSV) ─────────────────
+
+export function parsePurchaseRegisterCSV(filePath: string): NormalizedInvoice[] {
+  const text = fs.readFileSync(filePath, 'utf-8')
+  const rows = parseCSV(text)
+  if (rows.length < 2) return []
+
+  // Find the header row — sometimes there's a title row before headers
+  let headerIdx = 0
+  let headerMap = resolveHeaders(rows[0])
+  if (headerMap.supplier_gstin === undefined || headerMap.invoice_number === undefined) {
+    // try row 1
+    if (rows.length > 1) {
+      const m2 = resolveHeaders(rows[1])
+      if (m2.supplier_gstin !== undefined && m2.invoice_number !== undefined) {
+        headerIdx = 1
+        headerMap = m2
+      }
+    }
+  }
+  if (headerMap.supplier_gstin === undefined || headerMap.invoice_number === undefined) {
+    throw new Error('Could not identify required columns. Need at least: GSTIN, Invoice Number, Invoice Date, Taxable Value.')
+  }
+
+  return rowsToInvoices(rows, headerIdx, headerMap)
 }
 
 // ── Public: parse GSTR-2B JSON ────────────────────────────

@@ -117,6 +117,14 @@ declare global {
       }>
       reconGetResult: (taskId: number) => Promise<import('./types/reconciliation').ReconciliationResult | null>
       reconListRuns: (taskId: number) => Promise<any[]>
+      reconExplainRow: (taskId: number, rowIndex: number) => Promise<{
+        ok: boolean
+        explanation?: string
+        cached?: boolean
+        tokens_used?: number
+        cost_paise?: number
+        error?: string
+      }>
     }
   }
 }

@@ -19,6 +19,7 @@ export default defineConfig({
                 '@langchain/core',
                 'langchain',
                 '@modelcontextprotocol/sdk',
+                'xlsx',
               ],
             },
           },

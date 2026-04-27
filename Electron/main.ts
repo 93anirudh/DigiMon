@@ -20,6 +20,7 @@ import {
   ingestFile, ingestBuffer, listTaskFiles, deleteTaskFile,
   runGstr2bReconciliation, getReconciliationResult, listRuns,
 } from './reconcile/service'
+import { explainRow } from './reconcile/explainer'
 import {
   readMcpConfig, writeMcpConfig, getMcpStatus,
   loadMcpServer, disconnectAll, testMcpServer
@@ -482,6 +483,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('recon:run', (_e, taskId: number) => runGstr2bReconciliation(taskId))
   ipcMain.handle('recon:getResult', (_e, taskId: number) => getReconciliationResult(taskId))
   ipcMain.handle('recon:listRuns', (_e, taskId: number) => listRuns(taskId))
+  ipcMain.handle('recon:explainRow', (_e, taskId: number, rowIndex: number) => explainRow(taskId, rowIndex))
 
   createWindow()
 })

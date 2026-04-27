@@ -119,4 +119,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   reconRun: (taskId: number) => ipcRenderer.invoke('recon:run', taskId),
   reconGetResult: (taskId: number) => ipcRenderer.invoke('recon:getResult', taskId),
   reconListRuns: (taskId: number) => ipcRenderer.invoke('recon:listRuns', taskId),
+  reconExplainRow: (taskId: number, rowIndex: number) => ipcRenderer.invoke('recon:explainRow', taskId, rowIndex),
 })

@@ -8,7 +8,7 @@ import fs from 'fs'
 import path from 'path'
 import { app } from 'electron'
 import { getDb } from '../database'
-import { parsePurchaseRegisterCSV, parseGstr2bJSON, type NormalizedInvoice } from './parsers'
+import { parsePurchaseRegister, parseGstr2bJSON, type NormalizedInvoice } from './parsers'
 import { reconcile, type ReconciliationResult } from './matcher'
 
 export type FileKind = 'purchase_register' | 'gstr2b_json' | 'output_pdf' | 'output_xlsx'
@@ -116,7 +116,7 @@ export function runGstr2bReconciliation(taskId: number): RunOutcome {
   let gstr2bInvoices: NormalizedInvoice[] = []
 
   try {
-    registerInvoices = parsePurchaseRegisterCSV(reg.stored_path)
+    registerInvoices = parsePurchaseRegister(reg.stored_path)
     gstr2bInvoices   = parseGstr2bJSON(twoB.stored_path)
   } catch (err: any) {
     db.prepare(`

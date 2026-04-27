@@ -27,6 +27,10 @@ export function Gstr2bTaskView({ taskId, onBack }: Props) {
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<MismatchCategory | 'all'>('all')
+  const [lastRunMs, setLastRunMs] = useState<number | null>(null)
+  // Cached explanations: rowIndex → { explanation, cached, cost_paise }
+  const [explanations, setExplanations] = useState<Record<number, { text: string; cached: boolean; cost_paise: number }>>({})
+  const [explainingIdx, setExplainingIdx] = useState<number | null>(null)
 
   const reload = useCallback(async () => {
     const [t, f, r] = await Promise.all([
@@ -37,6 +41,19 @@ export function Gstr2bTaskView({ taskId, onBack }: Props) {
     setTask(t || null)
     setFiles(f as TaskFile[])
     setResult(r)
+    // If the result already has cached explanations, hydrate them by row index
+    if (r) {
+      const cache = (r as any).explanations as Record<string, string> | undefined
+      if (cache) {
+        const hydrated: Record<number, { text: string; cached: boolean; cost_paise: number }> = {}
+        r.rows.forEach((row, idx) => {
+          const inv = row.register || row.gstr2b
+          const key = `${row.category}::${inv?.supplier_gstin || ''}::${inv?.invoice_number || ''}::${inv?.invoice_date || ''}`
+          if (cache[key]) hydrated[idx] = { text: cache[key], cached: true, cost_paise: 0 }
+        })
+        setExplanations(hydrated)
+      }
+    }
   }, [taskId])
 
   useEffect(() => { reload() }, [reload])
@@ -64,12 +81,36 @@ export function Gstr2bTaskView({ taskId, onBack }: Props) {
       if (!out.ok) {
         setError(out.error || 'Reconciliation failed')
       } else {
+        setLastRunMs(out.durationMs ?? null)
+        setExplanations({})  // reset cache on re-run
         await reload()
       }
     } catch (err: any) {
       setError(err.message || 'Reconciliation failed')
     } finally {
       setRunning(false)
+    }
+  }
+
+  const handleExplain = async (rowIndex: number) => {
+    if (explanations[rowIndex] || explainingIdx === rowIndex) return
+    setExplainingIdx(rowIndex)
+    try {
+      const out = await window.electronAPI.reconExplainRow(taskId, rowIndex)
+      if (out.ok && out.explanation) {
+        setExplanations(prev => ({
+          ...prev,
+          [rowIndex]: {
+            text: out.explanation!,
+            cached: !!out.cached,
+            cost_paise: out.cost_paise || 0,
+          },
+        }))
+      } else {
+        setError(out.error || 'Failed to generate explanation')
+      }
+    } finally {
+      setExplainingIdx(null)
     }
   }
 
@@ -112,8 +153,8 @@ export function Gstr2bTaskView({ taskId, onBack }: Props) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <FileSlot
               label="Purchase Register"
-              hint="CSV from Tally, Zoho Books, Busy, or any accounting software"
-              accept=".csv,text/csv"
+              hint="CSV or Excel from Tally, Zoho Books, Busy, or any accounting software"
+              accept=".csv,.xlsx,.xls,.xlsm,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               file={reg}
               onUpload={f => handleUpload('purchase_register', f)}
               onDelete={() => reg && handleDeleteFile(reg.id)}
@@ -170,6 +211,33 @@ export function Gstr2bTaskView({ taskId, onBack }: Props) {
         {result && (
           <>
             <Section number="3" title="Results">
+              {/* Telemetry banner — surfaces the moat */}
+              <div style={{
+                background: 'rgba(34, 197, 94, 0.08)',
+                border: '1px solid rgba(34, 197, 94, 0.25)',
+                borderRadius: 10,
+                padding: '10px 14px',
+                marginBottom: 16,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 14,
+                fontSize: 12,
+                color: 'var(--text2)',
+                flexWrap: 'wrap',
+              }}>
+                <span style={{ color: '#4ADE80', fontSize: 14 }}>✓</span>
+                <span>
+                  <strong style={{ color: 'var(--text)' }}>Reconciled in {lastRunMs ? `${lastRunMs}ms` : '< 1s'}</strong>
+                  {' · '}
+                  <span style={{ color: '#4ADE80' }}>0 LLM tokens</span>
+                  {' · '}
+                  <strong style={{ color: 'var(--text)' }}>₹0 cost</strong>
+                </span>
+                <span style={{ color: 'var(--text3)', marginLeft: 'auto' }}>
+                  Click <em>Why?</em> on any flagged row for an AI explanation (~₹0.01, cached)
+                </span>
+              </div>
+
               {/* Summary cards */}
               <div style={{
                 display: 'grid',
@@ -236,7 +304,13 @@ export function Gstr2bTaskView({ taskId, onBack }: Props) {
               </div>
 
               {/* Results table */}
-              <ResultsTable rows={filteredRows} />
+              <ResultsTable
+                rows={filteredRows}
+                allRows={result.rows}
+                explanations={explanations}
+                explainingIdx={explainingIdx}
+                onExplain={handleExplain}
+              />
             </Section>
           </>
         )}
@@ -413,7 +487,15 @@ function Chip({ active, color, label, onClick }: { active: boolean; color?: stri
 
 // ── Results table ────────────────────────────────────────
 
-function ResultsTable({ rows }: { rows: MatchedRow[] }) {
+function ResultsTable({
+  rows, allRows, explanations, explainingIdx, onExplain,
+}: {
+  rows: MatchedRow[]
+  allRows: MatchedRow[]
+  explanations: Record<number, { text: string; cached: boolean; cost_paise: number }>
+  explainingIdx: number | null
+  onExplain: (rowIndex: number) => void
+}) {
   if (rows.length === 0) {
     return (
       <div style={{
@@ -448,16 +530,22 @@ function ResultsTable({ rows }: { rows: MatchedRow[] }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r, idx) => {
+            {rows.map((r) => {
+              // Find the canonical index in allRows so caching is stable across filtering
+              const rowIndex = allRows.indexOf(r)
               const inv = r.register || r.gstr2b
               const supplier = inv?.supplier_name || inv?.supplier_gstin
               const colors = CATEGORY_COLORS[r.category]
+              const explanation = explanations[rowIndex]
+              const isExplaining = explainingIdx === rowIndex
+              const canExplain = r.category !== 'matched'
+
               return (
                 <tr
-                  key={idx}
+                  key={rowIndex}
                   style={{
                     borderBottom: '1px solid var(--border)',
-                    background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
+                    background: rowIndex % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
                   }}
                 >
                   <Td>
@@ -495,9 +583,76 @@ function ResultsTable({ rows }: { rows: MatchedRow[] }) {
                     )}
                   </Td>
                   <Td>
-                    <div style={{ color: 'var(--text2)', fontSize: 11, lineHeight: 1.4, maxWidth: 320 }}>
+                    <div style={{ color: 'var(--text2)', fontSize: 11, lineHeight: 1.4, maxWidth: 360 }}>
                       {r.reason}
                     </div>
+
+                    {/* AI Explanation block */}
+                    {canExplain && (
+                      <div style={{ marginTop: 8 }}>
+                        {!explanation && !isExplaining && (
+                          <button
+                            onClick={() => onExplain(rowIndex)}
+                            style={{
+                              background: 'transparent',
+                              border: '1px solid var(--border-md)',
+                              color: 'var(--accent)',
+                              padding: '3px 9px',
+                              borderRadius: 6,
+                              fontSize: 11,
+                              fontWeight: 500,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 5,
+                            }}
+                          >
+                            <span style={{ fontSize: 9 }}>✨</span>
+                            Why?
+                          </button>
+                        )}
+                        {isExplaining && (
+                          <div style={{ fontSize: 11, color: 'var(--text3)', fontStyle: 'italic' }}>
+                            Asking Gemini Flash…
+                          </div>
+                        )}
+                        {explanation && (
+                          <div style={{
+                            background: 'rgba(99, 102, 241, 0.08)',
+                            border: '1px solid rgba(99, 102, 241, 0.25)',
+                            borderRadius: 6,
+                            padding: '8px 10px',
+                            fontSize: 11,
+                            color: 'var(--text)',
+                            lineHeight: 1.5,
+                            maxWidth: 360,
+                          }}>
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              fontSize: 9,
+                              color: '#A78BFA',
+                              marginBottom: 4,
+                              textTransform: 'uppercase',
+                              letterSpacing: 0.4,
+                              fontWeight: 600,
+                            }}>
+                              <span>✨ AI</span>
+                              {explanation.cached && (
+                                <span style={{ color: 'var(--text3)' }}>· cached</span>
+                              )}
+                              {!explanation.cached && explanation.cost_paise > 0 && (
+                                <span style={{ color: 'var(--text3)' }}>
+                                  · ₹{(explanation.cost_paise / 100).toFixed(2)}
+                                </span>
+                              )}
+                            </div>
+                            {explanation.text}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </Td>
                 </tr>
               )
